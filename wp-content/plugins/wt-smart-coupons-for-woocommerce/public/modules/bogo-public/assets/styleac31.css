@@ -1,0 +1,19 @@
+.wbte_sc_bogo_products li.wbte_get_away_product{ float:left; width:20%; margin-right:10px; margin-bottom:10px; min-width:200px; text-align: center; position: relative; border: none; }
+
+.wbte_get_away_product table.wt_variations{ margin: 0; }
+ul.woocommcerce.wbte_sc_bogo_products{ float:left; width:100%; margin:0; padding:0px; list-style-type:none; margin-bottom:25px; display:flex; flex-wrap:wrap; gap:20px 2%; }
+
+.wbte_product_name{ color: #555E6B; font-size: 18px; font-weight: 600; }
+.wbte_product_image img{ width: 100%; border-radius: 5px; }
+
+.wbte_choose_free_product{ font-size: 14px; padding: 10px 27px; border: none; margin-top: 25px; }
+.wbte_choose_free_product:hover{ border: none; }
+.wbte_choose_free_product:focus{ outline: none; }
+.wbte_give_away_product_attr{ width: 100%; }
+ul.woocommcerce.wbte_sc_bogo_products{ gap: 20px 3%; }
+
+.wbte_sc_bogo_quantity{ display:inline-block; }
+.wbte_sc_bogo_quantity input[type="number"]{ width:60px; max-width:100%; margin-bottom:5px; }
+
+.wbte_sc_bogo_msg_under_free_gift{ color: green; margin: 0 !important; }
+.wbte_sc_bogo_cheap_exp_qty_txt{ margin: 0 !important; font-size: small; }
