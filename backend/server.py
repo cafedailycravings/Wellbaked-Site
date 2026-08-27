@@ -619,6 +619,154 @@ async def dashboard(user=Depends(get_current_admin)):
     return {"revenue_trend": trend, "best_sellers": best_sellers,
             "recent_orders": recent, "recent_inquiries": recent_inq}
 
+# --- Sales Report (PDF) ---
+from fastapi.responses import Response
+
+@api.get("/admin/reports/sales")
+async def sales_report(year: int, month: int, user=Depends(get_current_admin)):
+    from datetime import datetime, timedelta, timezone
+    from fpdf import FPDF
+    from io import BytesIO
+    from calendar import monthrange
+    if month < 1 or month > 12: raise HTTPException(400, "Invalid month")
+    start = datetime(year, month, 1, tzinfo=timezone.utc)
+    last_day = monthrange(year, month)[1]
+    end = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc)
+    orders = await db.orders.find(
+        {"payment_status": "paid",
+         "created_at": {"$gte": start.isoformat(), "$lte": end.isoformat()}},
+        {"_id": 0}
+    ).sort("created_at", 1).to_list(2000)
+
+    total_revenue = round(sum(o.get("total", 0) for o in orders), 2)
+    total_orders = len(orders)
+    avg_order = round(total_revenue / total_orders, 2) if total_orders else 0
+
+    # aggregate items
+    item_totals = {}
+    for o in orders:
+        for it in o.get("items", []):
+            k = it["name"]
+            if k not in item_totals: item_totals[k] = {"qty": 0, "revenue": 0.0}
+            item_totals[k]["qty"] += it.get("quantity", 1)
+            item_totals[k]["revenue"] += it.get("price", 0) * it.get("quantity", 1)
+    top_items = sorted(item_totals.items(), key=lambda x: x[1]["revenue"], reverse=True)
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    # Colors (RGB from design)
+    BROWN = (74, 48, 34); BLUSH = (216, 157, 163); MUTED = (166, 138, 122)
+
+    # Header
+    pdf.set_fill_color(74, 48, 34)
+    pdf.rect(0, 0, 210, 40, style="F")
+    pdf.set_text_color(249, 246, 240)
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.set_xy(15, 12)
+    pdf.cell(180, 8, "Rustic Bakes by Daily Cravings", ln=1)
+    pdf.set_font("Helvetica", "I", 11)
+    pdf.set_xy(15, 22)
+    pdf.cell(180, 6, "Monthly Sales Report", ln=1)
+    month_name = start.strftime("%B %Y")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_xy(15, 30)
+    pdf.cell(180, 5, month_name, ln=1)
+
+    # Summary tiles
+    pdf.set_y(55)
+    pdf.set_text_color(*BROWN)
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 8, "Summary", ln=1)
+    pdf.ln(2)
+
+    def tile(x, y, label, value):
+        pdf.set_fill_color(243, 239, 230)
+        pdf.rect(x, y, 55, 22, style="F")
+        pdf.set_xy(x + 3, y + 3)
+        pdf.set_text_color(*MUTED)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.cell(50, 4, label.upper(), ln=0)
+        pdf.set_xy(x + 3, y + 10)
+        pdf.set_text_color(*BROWN)
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.cell(50, 6, value, ln=0)
+
+    y = pdf.get_y()
+    tile(15, y, "Total Revenue", f"Rs. {total_revenue:,.2f}")
+    tile(77, y, "Paid Orders", f"{total_orders}")
+    tile(139, y, "Avg Order", f"Rs. {avg_order:,.2f}")
+    pdf.set_y(y + 30)
+
+    # Top items table
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_text_color(*BROWN)
+    pdf.cell(0, 8, "Best-selling items", ln=1)
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_fill_color(74, 48, 34)
+    pdf.set_text_color(249, 246, 240)
+    pdf.cell(90, 8, "Product", border=0, fill=True)
+    pdf.cell(30, 8, "Qty", border=0, fill=True, align="R")
+    pdf.cell(40, 8, "Revenue", border=0, fill=True, align="R", ln=1)
+    pdf.set_text_color(*BROWN)
+    pdf.set_font("Helvetica", "", 10)
+    for i, (name, agg) in enumerate(top_items[:15]):
+        if i % 2 == 0:
+            pdf.set_fill_color(249, 246, 240)
+            fill = True
+        else:
+            fill = False
+        pdf.cell(90, 7, name[:55], fill=fill)
+        pdf.cell(30, 7, str(agg["qty"]), align="R", fill=fill)
+        pdf.cell(40, 7, f"Rs. {agg['revenue']:,.2f}", align="R", fill=fill, ln=1)
+
+    if not top_items:
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.set_text_color(*MUTED)
+        pdf.cell(0, 8, "No paid orders in this period.", ln=1)
+
+    # Orders list
+    pdf.ln(6)
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_text_color(*BROWN)
+    pdf.cell(0, 8, "Order log", ln=1)
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_fill_color(74, 48, 34)
+    pdf.set_text_color(249, 246, 240)
+    pdf.cell(35, 7, "Date", fill=True)
+    pdf.cell(30, 7, "Order #", fill=True)
+    pdf.cell(50, 7, "Customer", fill=True)
+    pdf.cell(45, 7, "Email", fill=True)
+    pdf.cell(30, 7, "Total", fill=True, align="R", ln=1)
+    pdf.set_text_color(*BROWN)
+    pdf.set_font("Helvetica", "", 9)
+    for i, o in enumerate(orders):
+        fill = i % 2 == 0
+        if fill: pdf.set_fill_color(249, 246, 240)
+        dt = o.get("created_at", "")[:10]
+        pdf.cell(35, 6, dt, fill=fill)
+        pdf.cell(30, 6, o["id"][:8], fill=fill)
+        pdf.cell(50, 6, (o.get("customer_name") or "")[:28], fill=fill)
+        pdf.cell(45, 6, (o.get("customer_email") or "")[:25], fill=fill)
+        pdf.cell(30, 6, f"Rs. {o.get('total',0):,.2f}", align="R", fill=fill, ln=1)
+
+    # Footer
+    pdf.set_y(-20)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(*MUTED)
+    pdf.cell(0, 5, f"Generated {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M UTC')} - Rustic Bakes by Daily Cravings", ln=1, align="C")
+
+    buf = BytesIO()
+    pdf_bytes = pdf.output(dest="S")
+    if isinstance(pdf_bytes, str): pdf_bytes = pdf_bytes.encode("latin-1")
+    buf.write(bytes(pdf_bytes))
+    buf.seek(0)
+    filename = f"rustic-bakes-sales-{year}-{month:02d}.pdf"
+    return Response(content=buf.read(), media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
 app.include_router(api)
 
 # --- Startup: seed admin + sample data ---

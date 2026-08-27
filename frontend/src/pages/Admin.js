@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib";
 import { toast } from "sonner";
-import { LogOut, Package, Layers, ShoppingBag, Inbox, FileText, User, CreditCard, BarChart3, Plus, Trash2, Edit2, X, Image as ImageIcon } from "lucide-react";
+import { LogOut, Package, Layers, ShoppingBag, Inbox, FileText, User, CreditCard, BarChart3, Plus, Trash2, Edit2, X, Image as ImageIcon, Download } from "lucide-react";
 
 const CUR = "₹";
 
@@ -185,6 +185,58 @@ function StatsTab() {
           </div>
         </div>
       )}
+
+      <SalesReportCard/>
+    </div>
+  );
+}
+
+function SalesReportCard() {
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [busy, setBusy] = useState(false);
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const download = async () => {
+    setBusy(true);
+    try {
+      const token = localStorage.getItem("rb_token");
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/reports/sales?year=${year}&month=${month}`,
+        { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `rustic-bakes-sales-${year}-${String(month).padStart(2,"0")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Report downloaded");
+    } catch { toast.error("Download failed"); }
+    finally { setBusy(false); }
+  };
+  const years = [now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2];
+  return (
+    <div className="card p-6 mt-6" data-testid="sales-report-card">
+      <div className="flex flex-wrap justify-between items-start gap-4">
+        <div>
+          <h3 className="font-serif text-xl text-brown">Sales insights</h3>
+          <p className="text-sm text-brown-light mt-1">Download a full monthly report with revenue, best-sellers, and every paid order. Perfect for taxes and bakery planning.</p>
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <select value={month} onChange={e=>setMonth(parseInt(e.target.value))} className="field w-auto py-2" data-testid="report-month">
+            {monthNames.map((n, i) => <option key={i+1} value={i+1}>{n}</option>)}
+          </select>
+          <select value={year} onChange={e=>setYear(parseInt(e.target.value))} className="field w-auto py-2" data-testid="report-year">
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <button className="btn-primary" disabled={busy} onClick={download} data-testid="download-report-btn">
+            <Download size={16}/> {busy ? "Preparing..." : "Download PDF"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

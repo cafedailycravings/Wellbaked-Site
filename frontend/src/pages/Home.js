@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { api, addToCart, LOGO, fmt } from "../lib";
 import { toast } from "sonner";
 import { ArrowRight, Wheat, Heart, Clock, Award } from "lucide-react";
+import { iconFor } from "../categoryIcons";
+import { SameDayBadge } from "../SameDayBadge";
 
 export default function Home() {
   const [hero, setHero] = useState({});
@@ -73,16 +75,22 @@ export default function Home() {
           <Link to="/shop" className="text-brown hover:text-brown-dark text-sm font-medium hidden md:flex items-center gap-1" data-testid="cats-see-all">See all <ArrowRight size={16}/></Link>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger">
-          {cats.map(c => (
-            <Link key={c.id} to={`/shop?cat=${c.slug}`} data-testid={`category-${c.slug}`} className="group relative overflow-hidden rounded-2xl h-64 block shadow-soft">
-              <img src={c.image} alt={c.name} className="w-full h-full object-cover" style={{transition:"transform .6s ease-out"}} onMouseEnter={e=>e.currentTarget.style.transform='scale(1.05)'} onMouseLeave={e=>e.currentTarget.style.transform=''}/>
-              <div className="absolute inset-0 bg-gradient-to-t from-brown/85 via-brown/20 to-transparent"/>
-              <div className="absolute bottom-0 left-0 p-6 text-cream">
-                <div className="font-serif text-2xl">{c.name}</div>
-                <div className="text-xs mt-1 text-cream/70">{c.description}</div>
-              </div>
-            </Link>
-          ))}
+          {cats.map(c => {
+            const { Icon, tint } = iconFor(c.slug);
+            return (
+              <Link key={c.id} to={`/shop?cat=${c.slug}`} data-testid={`category-${c.slug}`} className="group relative overflow-hidden rounded-2xl h-64 block shadow-soft">
+                <img src={c.image} alt={c.name} className="w-full h-full object-cover" style={{transition:"transform .6s ease-out"}} onMouseEnter={e=>e.currentTarget.style.transform='scale(1.05)'} onMouseLeave={e=>e.currentTarget.style.transform=''}/>
+                <div className="absolute inset-0 bg-gradient-to-t from-brown/85 via-brown/20 to-transparent"/>
+                <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-cream/90 backdrop-blur flex items-center justify-center shadow-medium">
+                  <Icon size={18} style={{ color: tint }}/>
+                </div>
+                <div className="absolute bottom-0 left-0 p-6 text-cream">
+                  <div className="font-serif text-2xl">{c.name}</div>
+                  <div className="text-xs mt-1 text-cream/70">{c.description}</div>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -97,12 +105,15 @@ export default function Home() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger">
             {featured.map(p => (
-              <div key={p.id} className="card group" data-testid={`featured-product-${p.slug}`}>
+              <div key={p.id} className="card group relative" data-testid={`featured-product-${p.slug}`}>
+                {p.category === "instant-delivery" && (
+                  <div className="absolute top-3 left-3 z-10"><SameDayBadge/></div>
+                )}
                 <Link to={`/product/${p.slug}`} className="block h-56 overflow-hidden">
                   <img src={p.image} alt={p.name} className="w-full h-full object-cover" style={{transition:"transform .5s ease-out"}} onMouseEnter={e=>e.currentTarget.style.transform='scale(1.06)'} onMouseLeave={e=>e.currentTarget.style.transform=''}/>
                 </Link>
                 <div className="p-5">
-                  <div className="text-[11px] uppercase tracking-widest text-brown-muted mb-1">{p.category}</div>
+                  <div className="text-[11px] uppercase tracking-widest text-brown-muted mb-1">{p.category?.replace(/-/g," ")}</div>
                   <Link to={`/product/${p.slug}`} className="font-serif text-xl text-brown block leading-tight">{p.name}</Link>
                   <div className="mt-4 flex items-center justify-between">
                     <div className="font-serif text-xl text-brown">{fmt(p.price)}</div>

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { api, addToCart, fmt } from "../lib";
 import { toast } from "sonner";
+import { iconFor } from "../categoryIcons";
+import { SameDayBadge } from "../SameDayBadge";
 
 export default function Shop() {
   const [params, setParams] = useSearchParams();
@@ -22,21 +24,33 @@ export default function Shop() {
 
       <div className="mt-10 flex flex-wrap gap-2">
         <button onClick={() => setParams({})} data-testid="filter-all"
-          className={"px-4 py-2 rounded-full text-sm border " + (!cat ? "bg-brown text-cream border-brown" : "border-brown/20 text-brown")}>All</button>
-        {cats.map(c => (
-          <button key={c.id} onClick={() => setParams({ cat: c.slug })} data-testid={`filter-${c.slug}`}
-            className={"px-4 py-2 rounded-full text-sm border " + (cat === c.slug ? "bg-brown text-cream border-brown" : "border-brown/20 text-brown hover:bg-brown/5")}>{c.name}</button>
-        ))}
+          className={"inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition-colors " + (!cat ? "bg-brown text-cream border-brown" : "border-brown/20 text-brown hover:bg-brown/5")}>
+          <span>All</span>
+        </button>
+        {cats.map(c => {
+          const { Icon, tint } = iconFor(c.slug);
+          const active = cat === c.slug;
+          return (
+            <button key={c.id} onClick={() => setParams({ cat: c.slug })} data-testid={`filter-${c.slug}`}
+              className={"inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition-colors " + (active ? "bg-brown text-cream border-brown" : "border-brown/20 text-brown hover:bg-brown/5")}>
+              <Icon size={15} style={{ color: active ? "#F9F6F0" : tint }}/>
+              <span>{c.name}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 stagger">
         {products.map(p => (
-          <div key={p.id} className="card" data-testid={`shop-product-${p.slug}`}>
+          <div key={p.id} className="card relative" data-testid={`shop-product-${p.slug}`}>
+            {p.category === "instant-delivery" && (
+              <div className="absolute top-4 left-4 z-10"><SameDayBadge/></div>
+            )}
             <Link to={`/product/${p.slug}`} className="block h-64 overflow-hidden">
               <img src={p.image} alt={p.name} className="w-full h-full object-cover"/>
             </Link>
             <div className="p-6">
-              <div className="text-[11px] uppercase tracking-widest text-brown-muted mb-1">{p.category}</div>
+              <div className="text-[11px] uppercase tracking-widest text-brown-muted mb-1">{p.category?.replace(/-/g," ")}</div>
               <Link to={`/product/${p.slug}`} className="font-serif text-2xl text-brown block">{p.name}</Link>
               <p className="text-brown-light text-sm mt-2 line-clamp-2">{p.description}</p>
               <div className="mt-5 flex items-center justify-between">
