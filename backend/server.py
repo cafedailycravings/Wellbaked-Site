@@ -268,7 +268,7 @@ async def delete_product(pid: str, user=Depends(get_current_admin)):
 # --- Categories ---
 @api.get("/categories")
 async def list_categories():
-    return await db.categories.find({}, {"_id": 0}).to_list(200)
+    return await db.categories.find({}, {"_id": 0}).sort("name", 1).to_list(200)
 
 @api.post("/admin/categories")
 async def create_category(c: CategoryIn, user=Depends(get_current_admin)):
@@ -580,6 +580,45 @@ async def stats(user=Depends(get_current_admin)):
     return {"products": total_products, "orders": total_orders, "paid_orders": paid_orders,
             "inquiries": total_inquiries, "low_stock": low_stock, "revenue": revenue}
 
+@api.get("/admin/dashboard")
+async def dashboard(user=Depends(get_current_admin)):
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc)
+    # revenue trend last 7 days
+    trend = []
+    for i in range(6, -1, -1):
+        day = (now - timedelta(days=i)).date()
+        start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc).isoformat()
+        end = (datetime(day.year, day.month, day.day, tzinfo=timezone.utc) + timedelta(days=1)).isoformat()
+        docs = await db.orders.find(
+            {"payment_status": "paid", "created_at": {"$gte": start, "$lt": end}},
+            {"total": 1, "_id": 0}
+        ).to_list(500)
+        trend.append({"date": day.isoformat(), "revenue": round(sum(d.get("total", 0) for d in docs), 2),
+                      "count": len(docs)})
+
+    # best sellers — aggregate items across paid orders
+    paid = await db.orders.find({"payment_status": "paid"}, {"items": 1, "_id": 0}).to_list(500)
+    totals = {}
+    for o in paid:
+        for it in o.get("items", []):
+            k = it.get("product_id") or it.get("name")
+            if k not in totals:
+                totals[k] = {"name": it["name"], "image": it.get("image", ""), "qty": 0, "revenue": 0.0}
+            totals[k]["qty"] += it.get("quantity", 1)
+            totals[k]["revenue"] += it.get("price", 0) * it.get("quantity", 1)
+    best_sellers = sorted(totals.values(), key=lambda x: x["qty"], reverse=True)[:5]
+    for b in best_sellers: b["revenue"] = round(b["revenue"], 2)
+
+    # recent orders
+    recent = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).limit(6).to_list(6)
+
+    # recent inquiries
+    recent_inq = await db.inquiries.find({}, {"_id": 0}).sort("created_at", -1).limit(4).to_list(4)
+
+    return {"revenue_trend": trend, "best_sellers": best_sellers,
+            "recent_orders": recent, "recent_inquiries": recent_inq}
+
 app.include_router(api)
 
 # --- Startup: seed admin + sample data ---
@@ -608,15 +647,30 @@ async def startup():
 
     # seed categories + products if none
     if await db.categories.count_documents({}) == 0:
+        img = lambda u: f"https://images.unsplash.com/{u}?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"
         cats = [
-            {"name": "Artisan Breads", "slug": "breads", "description": "Slow-fermented sourdoughs and rustic loaves.",
-             "image": "https://images.unsplash.com/photo-1586765501019-cbe3973ef8fa?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
-            {"name": "Signature Cakes", "slug": "cakes", "description": "Handcrafted layered cakes for every celebration.",
+            {"name": "All Cakes", "slug": "all-cakes", "description": "Every celebration cake we bake.",
              "image": "https://images.pexels.com/photos/2144112/pexels-photo-2144112.jpeg?auto=compress&cs=tinysrgb&w=800"},
-            {"name": "Fresh Pastries", "slug": "pastries", "description": "Butter-laminated croissants and Danish delights.",
-             "image": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
-            {"name": "Cookies & Bites", "slug": "cookies", "description": "Chewy, crunchy, and everything in between.",
-             "image": "https://images.unsplash.com/photo-1557310717-d6bea9f36682?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Bento Cakes", "slug": "bento-cakes", "description": "Petite handheld cakes for two.",
+             "image": img("photo-1621303837174-89787a7d4729")},
+            {"name": "Cheese Cake", "slug": "cheese-cake", "description": "Classic baked and no-bake cheesecakes.",
+             "image": img("photo-1533134242443-d4fd215305ad")},
+            {"name": "Cheese Cake Slice", "slug": "cheese-cake-slice", "description": "Grab-and-go slices of pure joy.",
+             "image": img("photo-1524351199678-941a58a3df50")},
+            {"name": "Corporate Offer", "slug": "corporate-offer", "description": "Bulk gifting for offices and events.",
+             "image": img("photo-1486427944299-d1955d23e34d")},
+            {"name": "Cup Cakes", "slug": "cup-cakes", "description": "Little frosted delights in every flavour.",
+             "image": img("photo-1587668178277-295251f900ce")},
+            {"name": "Customize Cake", "slug": "customize-cake", "description": "Made-to-order for your special day.",
+             "image": img("photo-1535254973040-607b474cb50d")},
+            {"name": "Donuts", "slug": "donuts", "description": "Soft, glazed rings of happiness.",
+             "image": img("photo-1551024506-0bccd828d307")},
+            {"name": "Dry Cakes", "slug": "dry-cakes", "description": "Tea-time loaves and pound cakes.",
+             "image": img("photo-1509440159596-0249088772ff")},
+            {"name": "Instant Delivery", "slug": "instant-delivery", "description": "Ready in an hour · same-day pickup.",
+             "image": img("photo-1558961363-fa8fdf82db35")},
+            {"name": "Premium Cakes", "slug": "premium-cakes", "description": "Our signature showstoppers.",
+             "image": img("photo-1578985545062-69928b1d9587")},
         ]
         for c in cats:
             c["id"] = str(uuid.uuid4())
@@ -625,30 +679,50 @@ async def startup():
 
     if await db.products.count_documents({}) == 0:
         prods = [
-            {"name": "Country Sourdough Loaf", "slug": "country-sourdough-loaf", "category": "breads",
-             "description": "48-hour naturally leavened sourdough with a crackling crust and open crumb.",
-             "price": 320.00, "stock": 12, "lead_time_hours": 24, "is_featured": True,
-             "image": "https://images.unsplash.com/photo-1586765501019-cbe3973ef8fa?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
-            {"name": "Vanilla Bean Celebration Cake", "slug": "vanilla-bean-cake", "category": "cakes",
-             "description": "Three layers of vanilla sponge, Madagascar bean buttercream, edible florals.",
-             "price": 1450.00, "stock": 4, "lead_time_hours": 48, "is_featured": True,
-             "image": "https://images.pexels.com/photos/2144112/pexels-photo-2144112.jpeg?auto=compress&cs=tinysrgb&w=800"},
-            {"name": "Butter Croissant", "slug": "butter-croissant", "category": "pastries",
-             "description": "27 layers of French butter, laminated by hand, baked to golden perfection.",
-             "price": 180.00, "stock": 30, "lead_time_hours": 12, "is_featured": True,
-             "image": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
-            {"name": "Brown Butter Chocolate Chip", "slug": "brown-butter-choc-chip", "category": "cookies",
-             "description": "Nutty brown butter, dark chocolate chunks, flaky sea salt. Sold in a box of 6.",
-             "price": 420.00, "stock": 20, "lead_time_hours": 12, "is_featured": True,
-             "image": "https://images.unsplash.com/photo-1557310717-d6bea9f36682?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
-            {"name": "Seeded Multigrain", "slug": "seeded-multigrain", "category": "breads",
-             "description": "Wholegrain flour, sunflower, flax, and sesame. Wholesome and hearty.",
-             "price": 340.00, "stock": 8, "lead_time_hours": 24, "is_featured": False,
+            {"name": "Classic New York Cheesecake", "slug": "ny-cheesecake", "category": "cheese-cake",
+             "description": "Rich, dense baked cheesecake with a buttery biscuit base and vanilla bean speckles.",
+             "price": 950.00, "stock": 8, "lead_time_hours": 24, "is_featured": True,
+             "image": "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Blueberry Cheesecake Slice", "slug": "blueberry-cheesecake-slice", "category": "cheese-cake-slice",
+             "description": "A single slice of creamy cheesecake topped with wild-blueberry compote.",
+             "price": 220.00, "stock": 20, "lead_time_hours": 6, "is_featured": True,
+             "image": "https://images.unsplash.com/photo-1524351199678-941a58a3df50?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Chocolate Truffle Bento", "slug": "chocolate-bento", "category": "bento-cakes",
+             "description": "Palm-sized chocolate truffle bento, hand-decorated. Perfect for a moment of joy.",
+             "price": 550.00, "stock": 12, "lead_time_hours": 12, "is_featured": True,
+             "image": "https://images.unsplash.com/photo-1621303837174-89787a7d4729?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Vanilla Bean Cupcake (Box of 6)", "slug": "vanilla-cupcake-6", "category": "cup-cakes",
+             "description": "Six fluffy vanilla-bean cupcakes topped with Swiss meringue buttercream.",
+             "price": 480.00, "stock": 15, "lead_time_hours": 12, "is_featured": False,
+             "image": "https://images.unsplash.com/photo-1587668178277-295251f900ce?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Marble Tea-Time Loaf", "slug": "marble-loaf", "category": "dry-cakes",
+             "description": "A gentle vanilla-and-chocolate marbled loaf. Ideal with an afternoon cup of chai.",
+             "price": 380.00, "stock": 10, "lead_time_hours": 12, "is_featured": False,
              "image": "https://images.unsplash.com/photo-1509440159596-0249088772ff?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
-            {"name": "Chocolate Ganache Tart", "slug": "chocolate-ganache-tart", "category": "pastries",
-             "description": "Dark chocolate ganache in a shortcrust pastry shell. Rich, dense, unforgettable.",
-             "price": 650.00, "stock": 6, "lead_time_hours": 24, "is_featured": False,
-             "image": "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Glazed Sugar Donut (Box of 6)", "slug": "sugar-donut-6", "category": "donuts",
+             "description": "Pillow-soft donuts with a delicate sugar glaze.",
+             "price": 320.00, "stock": 18, "lead_time_hours": 8, "is_featured": True,
+             "image": "https://images.unsplash.com/photo-1551024506-0bccd828d307?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Red Velvet Premium Cake", "slug": "red-velvet-premium", "category": "premium-cakes",
+             "description": "Three layers of scarlet sponge, cream-cheese frosting, hand-piped rosettes.",
+             "price": 1650.00, "stock": 4, "lead_time_hours": 48, "is_featured": True,
+             "image": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Corporate Gifting Box (12 pcs)", "slug": "corporate-box-12", "category": "corporate-offer",
+             "description": "Assorted bakes in a branded box. Add your company card for an extra touch.",
+             "price": 2400.00, "stock": 6, "lead_time_hours": 48, "is_featured": False,
+             "image": "https://images.unsplash.com/photo-1486427944299-d1955d23e34d?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Same-Day Chocolate Delight", "slug": "instant-choco-delight", "category": "instant-delivery",
+             "description": "Ready in 60 minutes. Dense chocolate ganache cake for last-minute celebrations.",
+             "price": 890.00, "stock": 5, "lead_time_hours": 1, "is_featured": True,
+             "image": "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Design Your Own Cake", "slug": "customize-your-cake", "category": "customize-cake",
+             "description": "Start from ₹1,200 · pick flavour, size, colours and message. 48-hour lead time.",
+             "price": 1200.00, "stock": 50, "lead_time_hours": 48, "is_featured": False,
+             "image": "https://images.unsplash.com/photo-1535254973040-607b474cb50d?crop=entropy&cs=srgb&fm=jpg&q=85&w=800"},
+            {"name": "Rainbow Celebration Cake", "slug": "rainbow-celebration", "category": "all-cakes",
+             "description": "Six coloured sponge layers, vanilla buttercream, a childhood favourite.",
+             "price": 1350.00, "stock": 5, "lead_time_hours": 48, "is_featured": False,
+             "image": "https://images.pexels.com/photos/2144112/pexels-photo-2144112.jpeg?auto=compress&cs=tinysrgb&w=800"},
         ]
         for p in prods:
             p["id"] = str(uuid.uuid4())

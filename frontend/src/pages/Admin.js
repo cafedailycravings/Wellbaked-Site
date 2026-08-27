@@ -72,9 +72,15 @@ export default function Admin() {
 
 function StatsTab() {
   const [s, setS] = useState({});
-  useEffect(() => { api.get("/admin/stats").then(r => setS(r.data)); }, []);
+  const [d, setD] = useState({ revenue_trend: [], best_sellers: [], recent_orders: [], recent_inquiries: [] });
+  useEffect(() => {
+    api.get("/admin/stats").then(r => setS(r.data));
+    api.get("/admin/dashboard").then(r => setD(r.data));
+  }, []);
   const tiles = [["Products", s.products, Package], ["Orders", s.orders, ShoppingBag], ["Paid", s.paid_orders, ShoppingBag],
     ["Revenue", CUR+(s.revenue||0), BarChart3], ["Inquiries", s.inquiries, Inbox], ["Low stock", s.low_stock, Layers]];
+  const maxRev = Math.max(1, ...d.revenue_trend.map(x => x.revenue));
+  const weekTotal = d.revenue_trend.reduce((a, b) => a + b.revenue, 0);
   return (
     <div>
       <h1 className="font-serif text-3xl text-brown mb-6">Overview</h1>
@@ -86,6 +92,99 @@ function StatsTab() {
           </div>
         ))}
       </div>
+
+      {/* Revenue trend */}
+      <div className="card p-6 mt-6" data-testid="revenue-trend">
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-brown-muted">Last 7 days</div>
+            <div className="font-serif text-2xl text-brown mt-1">{CUR}{weekTotal.toFixed(2)} in revenue</div>
+          </div>
+          <div className="text-xs text-brown-light">Paid orders only</div>
+        </div>
+        <div className="grid grid-cols-7 gap-3 items-end h-48">
+          {d.revenue_trend.map((day) => {
+            const h = day.revenue > 0 ? Math.max(6, (day.revenue / maxRev) * 100) : 3;
+            const label = new Date(day.date + "T00:00:00").toLocaleDateString("en", { weekday: "short" });
+            return (
+              <div key={day.date} className="flex flex-col items-center gap-2 h-full justify-end">
+                <div className="text-xs text-brown-light font-medium">{day.revenue > 0 ? `${CUR}${day.revenue.toFixed(0)}` : "—"}</div>
+                <div className="w-full bg-cream2 rounded-t-lg relative overflow-hidden" style={{ height: `${h}%`, minHeight: "6px", transition: "height .6s ease-out" }}>
+                  <div className="absolute inset-0 bg-gradient-to-t from-brown to-blush-dark rounded-t-lg"/>
+                </div>
+                <div className="text-[11px] uppercase tracking-widest text-brown-muted">{label}</div>
+                <div className="text-[10px] text-brown-muted">{day.count} order{day.count!==1?"s":""}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Best sellers + recent orders */}
+      <div className="grid lg:grid-cols-2 gap-6 mt-6">
+        <div className="card p-6" data-testid="best-sellers">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-serif text-xl text-brown">Best-selling bakes</h3>
+            <span className="text-xs uppercase tracking-widest text-brown-muted">All-time</span>
+          </div>
+          {d.best_sellers.length === 0 && <div className="text-brown-muted text-sm py-6">No paid orders yet — bestsellers will appear once customers start ordering.</div>}
+          <div className="space-y-3">
+            {d.best_sellers.map((b, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="font-serif text-2xl text-brown-muted w-8">{String(i+1).padStart(2,"0")}</div>
+                {b.image ? <img src={b.image} alt="" className="w-12 h-12 rounded-lg object-cover"/> : <div className="w-12 h-12 rounded-lg bg-cream2"/>}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-brown truncate">{b.name}</div>
+                  <div className="text-xs text-brown-muted">{b.qty} sold · {CUR}{b.revenue}</div>
+                </div>
+                <div className="w-24 h-2 bg-cream2 rounded-full overflow-hidden">
+                  <div className="h-full bg-blush-dark" style={{ width: `${Math.min(100, (b.qty / (d.best_sellers[0]?.qty || 1)) * 100)}%` }}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card p-6" data-testid="recent-orders">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-serif text-xl text-brown">Latest orders</h3>
+            <span className="text-xs uppercase tracking-widest text-brown-muted">6 most recent</span>
+          </div>
+          {d.recent_orders.length === 0 && <div className="text-brown-muted text-sm py-6">No orders yet.</div>}
+          <div className="space-y-3">
+            {d.recent_orders.map(o => (
+              <div key={o.id} className="flex items-center justify-between py-2 border-b border-brown/5 last:border-0">
+                <div className="min-w-0">
+                  <div className="font-medium text-brown text-sm truncate">{o.customer_name}</div>
+                  <div className="text-xs text-brown-muted">{new Date(o.created_at).toLocaleString()}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-serif text-brown">{CUR}{o.total}</div>
+                  <div className={"text-[10px] uppercase tracking-widest " + (o.payment_status==="paid"?"text-blush-dark":"text-brown-muted")}>{o.payment_status}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Recent inquiries */}
+      {d.recent_inquiries.length > 0 && (
+        <div className="card p-6 mt-6">
+          <h3 className="font-serif text-xl text-brown mb-4">Latest inquiries</h3>
+          <div className="space-y-3">
+            {d.recent_inquiries.map(i => (
+              <div key={i.id} className="pb-3 border-b border-brown/5 last:border-0">
+                <div className="flex justify-between">
+                  <div className="font-medium text-brown text-sm">{i.name}</div>
+                  <div className="text-xs text-brown-muted">{new Date(i.created_at).toLocaleDateString()}</div>
+                </div>
+                <div className="text-sm text-brown-light mt-1 line-clamp-2">{i.subject ? <strong>{i.subject}: </strong> : null}{i.message}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
