@@ -1,0 +1,10 @@
+.git
+.emergent
+node_modules
+build
+__pycache__
+*.pyc
+.env
+.env.local
+.env.production
+memory/test_credentials.md

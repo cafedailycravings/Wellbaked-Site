@@ -1,7 +1,25 @@
+# deps / build
+node_modules/
+build/
+dist/
+__pycache__/
+*.pyc
+
+# secrets
+backend/.env
+frontend/.env
 .env
-.env.*
-*.env
-credentials.json
-*.pem
-*.key
-.credentials
+
+# emergent internals
+.emergent/
+
+# reports
+test_reports/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
