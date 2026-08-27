@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, getUser, setUser, fmt } from "../lib";
 import { toast } from "sonner";
-import { Award, Cookie } from "lucide-react";
+import { Award, Cookie, Heart, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Account() {
   const nav = useNavigate();
@@ -10,12 +11,20 @@ export default function Account() {
   const [form, setForm] = useState({ name: "", phone: "", address: "", password: "" });
   const [orders, setOrders] = useState([]);
   const [loyalty, setLoyalty] = useState({ punches: 0, available_rewards: 0, goal: 10 });
+  const [wishlist, setWishlist] = useState([]);
   useEffect(() => {
     if (!u) { nav("/login?redirect=/account"); return; }
     api.get("/auth/me").then(r => { setU(r.data); setForm({name:r.data.name||"", phone:r.data.phone||"", address:r.data.address||"", password:""}); });
     api.get("/auth/orders").then(r => setOrders(r.data)).catch(()=>{});
     api.get("/loyalty").then(r => setLoyalty(r.data)).catch(()=>{});
+    api.get("/wishlist").then(r => setWishlist(r.data)).catch(()=>{});
   }, [nav]); // eslint-disable-line
+
+  const removeFromWishlist = async (pid) => {
+    await api.post(`/wishlist/${pid}`);
+    setWishlist(wishlist.filter(p => p.id !== pid));
+    window.dispatchEvent(new Event("wishlist-updated"));
+  };
 
   const save = async () => {
     try {
@@ -92,6 +101,31 @@ export default function Account() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Wishlist */}
+      <div className="mt-16">
+        <div className="flex items-center gap-3 mb-4">
+          <Heart size={20} className="text-blush-dark"/>
+          <h3 className="font-serif text-2xl text-brown">Your wishlist</h3>
+          <span className="text-xs text-brown-muted">{wishlist.length} saved</span>
+        </div>
+        {wishlist.length === 0 ? (
+          <div className="card p-8 text-center text-brown-muted">Nothing saved yet. Tap the heart on any bake to save it here.</div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="wishlist-grid">
+            {wishlist.map(p => (
+              <div key={p.id} className="card p-4 flex gap-4 items-center" data-testid={`wl-item-${p.id}`}>
+                <img src={p.image} alt={p.name} className="w-20 h-20 rounded-lg object-cover"/>
+                <div className="flex-1 min-w-0">
+                  <Link to={`/product/${p.slug}`} className="font-serif text-brown block truncate">{p.name}</Link>
+                  <div className="text-sm text-brown-light">{fmt(p.price)}</div>
+                </div>
+                <button onClick={()=>removeFromWishlist(p.id)} className="p-2 text-brown-muted hover:text-blush-dark"><Trash2 size={16}/></button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

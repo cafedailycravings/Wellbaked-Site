@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib";
 import { toast } from "sonner";
-import { LogOut, Package, Layers, ShoppingBag, Inbox, FileText, User, CreditCard, BarChart3, Plus, Trash2, Edit2, X, Image as ImageIcon, Download, Star, Instagram } from "lucide-react";
+import { LogOut, Package, Layers, ShoppingBag, Inbox, FileText, User, CreditCard, BarChart3, Plus, Trash2, Edit2, X, Image as ImageIcon, Download, Star, Instagram, MapPin, Cake } from "lucide-react";
 
 const CUR = "₹";
 
@@ -13,8 +13,10 @@ const TABS = [
   { id: "categories", label: "Categories", icon: Layers },
   { id: "images", label: "Images", icon: ImageIcon },
   { id: "orders", label: "Orders", icon: ShoppingBag },
+  { id: "custom-cakes", label: "Custom Cakes", icon: Cake },
   { id: "reviews", label: "Reviews", icon: Star },
   { id: "inquiries", label: "Inquiries", icon: Inbox },
+  { id: "delivery", label: "Delivery Zones", icon: MapPin },
   { id: "content", label: "Site Content", icon: FileText },
   { id: "instagram", label: "Instagram", icon: Instagram },
   { id: "payment", label: "Payment Gateway", icon: CreditCard },
@@ -62,8 +64,10 @@ export default function Admin() {
           {tab === "categories" && <CategoriesTab/>}
           {tab === "images" && <ImagesTab/>}
           {tab === "orders" && <OrdersTab/>}
+          {tab === "custom-cakes" && <CustomCakesTab/>}
           {tab === "reviews" && <ReviewsTab/>}
           {tab === "inquiries" && <InquiriesTab/>}
+          {tab === "delivery" && <DeliveryTab/>}
           {tab === "content" && <ContentTab/>}
           {tab === "instagram" && <InstagramTab/>}
           {tab === "payment" && <PaymentTab/>}
@@ -510,6 +514,85 @@ function InquiriesTab() {
     </div>
   );
 }
+
+function CustomCakesTab() {
+  const [items, setItems] = useState([]);
+  const load = () => api.get("/admin/custom-cakes").then(r => setItems(r.data));
+  useEffect(load, []);
+  const update = async (id, status) => { await api.put(`/admin/custom-cakes/${id}`, { status }); load(); toast.success("Updated"); };
+  return (
+    <div>
+      <h1 className="font-serif text-3xl text-brown mb-6">Custom Cake Requests</h1>
+      <div className="grid gap-3">
+        {items.map(r => (
+          <div key={r.id} className="card p-5" data-testid={`cake-req-${r.id}`}>
+            <div className="flex flex-wrap justify-between gap-3">
+              <div>
+                <div className="font-serif text-lg text-brown">{r.flavour} · {r.size} · {r.layers} layer(s)</div>
+                <div className="text-xs text-brown-muted mt-1">
+                  {r.customer_name} · {r.customer_email} · {r.customer_phone || "no phone"} · {new Date(r.created_at).toLocaleString()}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="font-serif text-brown text-lg">{CUR}{r.estimated_price}</div>
+                <select value={r.status} onChange={e=>update(r.id, e.target.value)} className="field py-1 w-auto text-sm">
+                  {["new","quoted","confirmed","baking","delivered","cancelled"].map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="mt-3 text-sm text-brown-light">
+              <div>Colour: <strong>{r.colour}</strong> · Message on cake: <em>"{r.message_on_cake || "—"}"</em> · Needed by: {r.needed_by || "flexible"}</div>
+              {r.notes && <div className="mt-1">Notes: {r.notes}</div>}
+            </div>
+          </div>
+        ))}
+        {items.length === 0 && <div className="text-brown-muted text-center py-10">No custom cake requests yet.</div>}
+      </div>
+    </div>
+  );
+}
+
+function DeliveryTab() {
+  const [zones, setZones] = useState([]);
+  const [form, setForm] = useState({ pincode: "", area: "", delivery_window: "Same day", fee: 0 });
+  const load = () => api.get("/admin/delivery-zones").then(r => setZones(r.data));
+  useEffect(load, []);
+  const add = async () => {
+    if (!form.pincode || !form.area) return toast.error("Pincode and area required");
+    try { await api.post("/admin/delivery-zones", form); setForm({pincode:"",area:"",delivery_window:"Same day",fee:0}); load(); toast.success("Zone added"); }
+    catch { toast.error("Failed"); }
+  };
+  const del = async (id) => { await api.delete(`/admin/delivery-zones/${id}`); load(); };
+  return (
+    <div>
+      <h1 className="font-serif text-3xl text-brown mb-2">Delivery Zones</h1>
+      <p className="text-brown-light text-sm mb-6">Add pincodes you deliver to. Use format like <code>110020</code> for exact or <code>110xxx</code> for a prefix match.</p>
+      <div className="card p-4 mb-6 grid md:grid-cols-5 gap-3">
+        <input className="field" placeholder="Pincode" value={form.pincode} onChange={e=>setForm({...form,pincode:e.target.value})} data-testid="zone-pincode"/>
+        <input className="field md:col-span-2" placeholder="Area name" value={form.area} onChange={e=>setForm({...form,area:e.target.value})} data-testid="zone-area"/>
+        <input className="field" placeholder="Window" value={form.delivery_window} onChange={e=>setForm({...form,delivery_window:e.target.value})}/>
+        <div className="flex gap-2">
+          <input className="field" type="number" placeholder="Fee ₹" value={form.fee} onChange={e=>setForm({...form,fee:parseFloat(e.target.value)||0})}/>
+          <button className="btn-primary" onClick={add} data-testid="zone-add"><Plus size={16}/></button>
+        </div>
+      </div>
+      <div className="grid md:grid-cols-2 gap-3">
+        {zones.map(z => (
+          <div key={z.id} className="card p-4 flex items-center gap-4">
+            <MapPin size={18} className="text-blush-dark"/>
+            <div className="flex-1">
+              <div className="font-serif text-brown">{z.area}</div>
+              <div className="text-xs text-brown-muted">{z.pincode} · {z.delivery_window} · {CUR}{z.fee}</div>
+            </div>
+            <button onClick={()=>del(z.id)} className="text-blush-dark p-2"><Trash2 size={16}/></button>
+          </div>
+        ))}
+        {zones.length === 0 && <div className="col-span-full text-brown-muted text-center py-10">No delivery zones yet.</div>}
+      </div>
+    </div>
+  );
+}
+
 
 function ContentTab() {
   const [hero, setHero] = useState({title:"",subtitle:"",cta:"",image:""});

@@ -65,3 +65,9 @@ Build "Rustic Bakes" — a full-stack website for the artisan bakery "Rustic Bak
 
 ## Test Credentials
 See `/app/memory/test_credentials.md`
+
+## Implemented (2026-01-27 - session 3)
+- **Featured Review Wall**: Homepage marquee scrolls 4+ star reviews infinitely (pauses on hover). New /api/reviews/featured endpoint.
+- **Wishlist Hearts**: Product cards on Home/Shop/Product show a heart button. Toggles via /api/wishlist/{id}. Wishlist tab on /account.
+- **Delivery Zones**: /api/delivery/check/{pincode} public endpoint. Pincode checker on Checkout with fee added to total. Admin Delivery Zones tab to CRUD zones. Seeded 7 India pincodes.
+- **Cake Builder**: /customize page with 6-flavour × 4-size × 5-layer × 6-colour × message-on-cake picker, live layered preview with drip effect, dynamic pricing. Submits to /api/custom-cake → creates request + WhatsApp ping. Admin Custom Cakes tab to manage requests.

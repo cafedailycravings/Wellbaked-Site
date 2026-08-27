@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, addToCart, LOGO, fmt } from "../lib";
 import { toast } from "sonner";
-import { ArrowRight, Wheat, Heart, Clock, Award, Instagram } from "lucide-react";
+import { ArrowRight, Wheat, Heart, Clock, Award, Instagram, Sparkles } from "lucide-react";
 import { iconFor } from "../categoryIcons";
 import { SameDayBadge } from "../SameDayBadge";
+import { WishlistHeart, refreshWishlist } from "../Wishlist";
+import { ReviewWall } from "../ReviewWall";
 
 export default function Home() {
   const [hero, setHero] = useState({});
@@ -18,6 +20,7 @@ export default function Home() {
     api.get("/products?featured=true").then(r => setFeatured(r.data));
     api.get("/categories").then(r => setCats(r.data));
     api.get("/content/instagram").then(r => { if (r.data.value?.posts) setInstagram(r.data.value); });
+    refreshWishlist();
   }, []);
 
   return (
@@ -111,6 +114,7 @@ export default function Home() {
                 {p.category === "instant-delivery" && (
                   <div className="absolute top-3 left-3 z-10"><SameDayBadge/></div>
                 )}
+                <div className="absolute top-3 right-3 z-10"><WishlistHeart productId={p.id} size={18}/></div>
                 <Link to={`/product/${p.slug}`} className="block h-56 overflow-hidden">
                   <img src={p.image} alt={p.name} className="w-full h-full object-cover" style={{transition:"transform .5s ease-out"}} onMouseEnter={e=>e.currentTarget.style.transform='scale(1.06)'} onMouseLeave={e=>e.currentTarget.style.transform=''}/>
                 </Link>
@@ -127,6 +131,32 @@ export default function Home() {
             ))}
           </div>
         </div>
+      </section>
+
+      <ReviewWall/>
+
+      {/* Cake builder teaser */}
+      <section className="max-w-7xl mx-auto px-6 py-16">
+        <Link to="/customize" data-testid="cake-builder-cta"
+              className="block card p-10 relative overflow-hidden hover:shadow-large"
+              style={{background: "linear-gradient(135deg, #F3EFE6 0%, #E8B4B8 100%)"}}>
+          <div className="grain absolute inset-0 opacity-30"/>
+          <div className="relative z-10 grid md:grid-cols-2 items-center gap-8">
+            <div>
+              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-brown"><Sparkles size={14} className="text-gold"/> Design your own</div>
+              <h2 className="font-serif text-4xl text-brown mt-3">Build the cake of your dreams</h2>
+              <p className="text-brown-light mt-3 max-w-md">Pick your flavour, size, colour and the message on top. Watch it come to life in real time. 48-hour lead.</p>
+              <div className="btn-primary mt-6 inline-flex">Try the cake builder <ArrowRight size={16}/></div>
+            </div>
+            <div className="hidden md:flex justify-center">
+              <div className="relative">
+                <div style={{width:220, height:45, background:"#F5E6D3", borderRadius:"8px", marginBottom:4, boxShadow:"0 4px 12px rgba(74,48,34,.15)"}}/>
+                <div style={{width:190, height:45, background:"#F5E6D3", borderRadius:"8px", marginBottom:4, marginLeft:15, boxShadow:"0 4px 12px rgba(74,48,34,.15)"}}/>
+                <div style={{width:160, height:45, background:"#F5E6D3", borderRadius:"8px", marginLeft:30, boxShadow:"0 4px 12px rgba(74,48,34,.15)"}}/>
+              </div>
+            </div>
+          </div>
+        </Link>
       </section>
 
       {/* About teaser */}

@@ -15,6 +15,7 @@ import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Account from "./pages/Account";
 import CategoryPage from "./pages/CategoryPage";
+import CakeBuilder from "./pages/CakeBuilder";
 
 function SiteShell({ children }) {
   return (<><Nav/>{children}<Footer/></>);
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/" element={<SiteShell><Home/></SiteShell>}/>
         <Route path="/shop" element={<SiteShell><Shop/></SiteShell>}/>
         <Route path="/category/:slug" element={<SiteShell><CategoryPage/></SiteShell>}/>
+        <Route path="/customize" element={<SiteShell><CakeBuilder/></SiteShell>}/>
         <Route path="/product/:slug" element={<SiteShell><Product/></SiteShell>}/>
         <Route path="/about" element={<SiteShell><About/></SiteShell>}/>
         <Route path="/contact" element={<SiteShell><Contact/></SiteShell>}/>

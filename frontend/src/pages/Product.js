@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { api, addToCart, fmt, getUser } from "../lib";
 import { toast } from "sonner";
 import { ArrowLeft, Clock, Minus, Plus, Star, ImagePlus } from "lucide-react";
+import { WishlistHeart } from "../Wishlist";
 
 function StarRow({ value = 5, size = 16, onSet }) {
   return (
@@ -73,7 +74,10 @@ export default function Product() {
     <div className="max-w-6xl mx-auto px-6 py-12">
       <Link to="/shop" className="text-brown-light hover:text-brown text-sm inline-flex items-center gap-2 mb-6"><ArrowLeft size={16}/> Back to shop</Link>
       <div className="grid lg:grid-cols-2 gap-12 items-start">
-        <img src={p.image} alt={p.name} className="w-full h-[520px] object-cover rounded-3xl shadow-large" data-testid="product-image"/>
+        <div className="relative">
+          <img src={p.image} alt={p.name} className="w-full h-[520px] object-cover rounded-3xl shadow-large" data-testid="product-image"/>
+          <div className="absolute top-4 right-4"><WishlistHeart productId={p.id} size={22}/></div>
+        </div>
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-brown-muted">{p.category?.replace(/-/g," ")}</div>
           <h1 className="font-serif text-5xl text-brown mt-2" data-testid="product-name">{p.name}</h1>

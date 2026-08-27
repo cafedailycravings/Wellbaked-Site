@@ -306,6 +306,13 @@ async def delete_category(cid: str, user=Depends(get_current_admin)):
     return {"success": True}
 
 # --- Reviews ---
+@api.get("/reviews/featured")
+async def featured_reviews():
+    reviews = await db.reviews.find(
+        {"status": "approved", "rating": {"$gte": 4}}, {"_id": 0}
+    ).sort([("rating", -1), ("created_at", -1)]).limit(12).to_list(12)
+    return reviews
+
 @api.get("/products/{slug}/reviews")
 async def list_reviews(slug: str):
     reviews = await db.reviews.find({"product_slug": slug, "status": "approved"}, {"_id": 0}).sort("created_at", -1).to_list(200)
@@ -355,6 +362,96 @@ async def get_loyalty(user=Depends(get_current_user)):
     u = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
     return {"punches": u.get("punches", 0), "available_rewards": u.get("available_rewards", 0),
             "goal": LOYALTY_PUNCHES_REQUIRED}
+
+# --- Wishlist ---
+@api.get("/wishlist")
+async def get_wishlist(user=Depends(get_current_user)):
+    u = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    ids = u.get("wishlist", []) if u else []
+    if not ids: return []
+    products = await db.products.find({"id": {"$in": ids}, "is_active": True}, {"_id": 0}).to_list(100)
+    return products
+
+@api.post("/wishlist/{product_id}")
+async def toggle_wishlist(product_id: str, user=Depends(get_current_user)):
+    u = await db.users.find_one({"id": user["id"]})
+    wl = u.get("wishlist", []) if u else []
+    if product_id in wl:
+        wl.remove(product_id)
+        action = "removed"
+    else:
+        wl.append(product_id)
+        action = "added"
+    await db.users.update_one({"id": user["id"]}, {"$set": {"wishlist": wl}})
+    return {"action": action, "wishlist": wl}
+
+# --- Delivery Zones ---
+@api.get("/delivery/check/{pincode}")
+async def check_delivery(pincode: str):
+    zone = await db.delivery_zones.find_one({"pincode": pincode}, {"_id": 0})
+    if not zone:
+        # Check prefix match (first 3 digits)
+        zone = await db.delivery_zones.find_one({"pincode": pincode[:3] + "xxx"}, {"_id": 0})
+    if zone:
+        return {"servable": True, "area": zone["area"], "delivery_window": zone["delivery_window"],
+                "fee": zone.get("fee", 0)}
+    return {"servable": False, "message": "Sorry, we don't deliver to this pincode yet. Contact us for special arrangements."}
+
+@api.get("/admin/delivery-zones")
+async def list_zones(user=Depends(get_current_admin)):
+    return await db.delivery_zones.find({}, {"_id": 0}).sort("pincode", 1).to_list(500)
+
+@api.post("/admin/delivery-zones")
+async def create_zone(data: dict, user=Depends(get_current_admin)):
+    if not data.get("pincode") or not data.get("area"):
+        raise HTTPException(400, "Pincode and area required")
+    doc = {"id": str(uuid.uuid4()), "pincode": str(data["pincode"]), "area": data["area"],
+           "delivery_window": data.get("delivery_window", "Same day"),
+           "fee": float(data.get("fee", 0)), "created_at": now_iso()}
+    await db.delivery_zones.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.delete("/admin/delivery-zones/{zid}")
+async def delete_zone(zid: str, user=Depends(get_current_admin)):
+    await db.delivery_zones.delete_one({"id": zid})
+    return {"success": True}
+
+# --- Custom Cake Requests ---
+@api.post("/custom-cake")
+async def create_custom_cake(data: dict, request: Request):
+    user = await get_optional_user(request)
+    doc = {"id": str(uuid.uuid4()),
+           "flavour": data.get("flavour", ""), "size": data.get("size", ""),
+           "colour": data.get("colour", ""), "layers": data.get("layers", 1),
+           "message_on_cake": data.get("message_on_cake", ""),
+           "customer_name": data.get("customer_name", ""),
+           "customer_email": data.get("customer_email", ""),
+           "customer_phone": data.get("customer_phone", ""),
+           "notes": data.get("notes", ""),
+           "estimated_price": float(data.get("estimated_price", 1200)),
+           "needed_by": data.get("needed_by", ""),
+           "status": "new",
+           "user_id": user["id"] if user else None,
+           "created_at": now_iso()}
+    await db.custom_cake_requests.insert_one(doc)
+    # notify owner
+    summary = (f"🎂 New custom-cake request\n"
+               f"Flavour: {doc['flavour']}\nSize: {doc['size']}\nLayers: {doc['layers']}\n"
+               f"Colour: {doc['colour']}\nMessage: {doc['message_on_cake']}\n"
+               f"Customer: {doc['customer_name']} · {doc['customer_email']}\n"
+               f"Needed by: {doc['needed_by']}\nEstimated: ₹{doc['estimated_price']:.2f}")
+    asyncio.create_task(send_whatsapp_text(summary))
+    return {"success": True, "id": doc["id"]}
+
+@api.get("/admin/custom-cakes")
+async def list_custom_cakes(user=Depends(get_current_admin)):
+    return await db.custom_cake_requests.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+@api.put("/admin/custom-cakes/{cid}")
+async def update_custom_cake(cid: str, data: dict, user=Depends(get_current_admin)):
+    await db.custom_cake_requests.update_one({"id": cid}, {"$set": {"status": data.get("status", "new")}})
+    return {"success": True}
 
 # --- Inquiries ---
 @api.post("/inquiries")
@@ -962,6 +1059,22 @@ async def startup():
     for k, v in default_content.items():
         if not await db.site_content.find_one({"key": k}):
             await db.site_content.insert_one({"key": k, "value": v, "updated_at": now_iso()})
+
+    # seed delivery zones (India example - major metro pincodes)
+    if await db.delivery_zones.count_documents({}) == 0:
+        zones = [
+            {"pincode": "110001", "area": "Central Delhi", "delivery_window": "Same day · 2-4 hrs", "fee": 80},
+            {"pincode": "110020", "area": "South Delhi", "delivery_window": "Same day · 2-4 hrs", "fee": 80},
+            {"pincode": "122001", "area": "Gurgaon", "delivery_window": "Same day · 3-5 hrs", "fee": 120},
+            {"pincode": "201301", "area": "Noida", "delivery_window": "Same day · 3-5 hrs", "fee": 120},
+            {"pincode": "400001", "area": "South Mumbai", "delivery_window": "Same day · 3-6 hrs", "fee": 150},
+            {"pincode": "560001", "area": "Central Bangalore", "delivery_window": "Same day · 2-4 hrs", "fee": 100},
+            {"pincode": "110xxx", "area": "Delhi NCR (general)", "delivery_window": "Next day", "fee": 150},
+        ]
+        for z in zones:
+            z["id"] = str(uuid.uuid4())
+            z["created_at"] = now_iso()
+        await db.delivery_zones.insert_many(zones)
 
 @app.get("/")
 async def root():

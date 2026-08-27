@@ -3,6 +3,7 @@ import { getCart, cartTotal, api, getUser, fmt } from "../lib";
 import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
 import { LogIn, User } from "lucide-react";
+import { PincodeChecker } from "../PincodeChecker";
 
 export default function Checkout() {
   const nav = useNavigate();
@@ -10,6 +11,7 @@ export default function Checkout() {
   const [user, setLocalUser] = useState(getUser());
   const [form, setForm] = useState({ customer_name: "", customer_email: "", customer_phone: "", delivery_address: "", notes: "" });
   const [loading, setLoading] = useState(false);
+  const [delivery, setDelivery] = useState(null);
   useEffect(() => {
     const c = getCart(); if (c.length === 0) nav("/cart"); setCart(c);
   }, [nav]);
@@ -79,17 +81,28 @@ export default function Checkout() {
           <p className="text-xs text-brown-muted text-center mt-2">Powered by Stripe · Test mode active · Use card 4242 4242 4242 4242</p>
         </form>
         <div className="lg:col-span-5">
-          <div className="card p-6 sticky top-24">
-            <h3 className="font-serif text-xl text-brown">Order summary</h3>
-            <div className="mt-4 space-y-2">
-              {cart.map(it => (
-                <div key={it.product_id} className="flex justify-between text-brown-light text-sm">
-                  <span>{it.name} × {it.quantity}</span>
-                  <span>{fmt(it.price*it.quantity)}</span>
+          <div className="sticky top-24 space-y-4">
+            <PincodeChecker onServable={setDelivery}/>
+            <div className="card p-6">
+              <h3 className="font-serif text-xl text-brown">Order summary</h3>
+              <div className="mt-4 space-y-2">
+                {cart.map(it => (
+                  <div key={it.product_id} className="flex justify-between text-brown-light text-sm">
+                    <span>{it.name} × {it.quantity}</span>
+                    <span>{fmt(it.price*it.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+              {delivery?.servable && (
+                <div className="mt-3 pt-3 border-t border-brown/10 flex justify-between text-brown-light text-sm">
+                  <span>Delivery ({delivery.area})</span><span>{fmt(delivery.fee)}</span>
                 </div>
-              ))}
+              )}
+              <div className="mt-4 pt-4 border-t border-brown/10 flex justify-between font-serif text-xl text-brown">
+                <span>Total</span>
+                <span>{fmt(cartTotal() + (delivery?.servable ? delivery.fee : 0))}</span>
+              </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-brown/10 flex justify-between font-serif text-xl text-brown"><span>Total</span><span>{fmt(cartTotal())}</span></div>
           </div>
         </div>
       </div>

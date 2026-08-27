@@ -4,6 +4,7 @@ import { api, addToCart, fmt } from "../lib";
 import { toast } from "sonner";
 import { iconFor } from "../categoryIcons";
 import { SameDayBadge } from "../SameDayBadge";
+import { WishlistHeart } from "../Wishlist";
 
 export default function Shop() {
   const [params, setParams] = useSearchParams();
@@ -46,6 +47,7 @@ export default function Shop() {
             {p.category === "instant-delivery" && (
               <div className="absolute top-4 left-4 z-10"><SameDayBadge/></div>
             )}
+            <div className="absolute top-4 right-4 z-10"><WishlistHeart productId={p.id}/></div>
             <Link to={`/product/${p.slug}`} className="block h-64 overflow-hidden">
               <img src={p.image} alt={p.name} className="w-full h-full object-cover"/>
             </Link>
