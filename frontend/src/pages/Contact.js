@@ -6,6 +6,12 @@ import { Mail, Phone, MapPin, Clock, Instagram, MessageCircle } from "lucide-rea
 export default function Contact() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", subject: "", message: "" });
   const [sending, setSending] = useState(false);
+  const [mapsEmbed, setMapsEmbed] = useState("");
+  React.useEffect(() => {
+    api.get("/content/maps").then(r => {
+      if (r.data.value?.embed_url) setMapsEmbed(r.data.value.embed_url);
+    }).catch(()=>{});
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -19,7 +25,7 @@ export default function Contact() {
     } finally { setSending(false); }
   };
 
-  const mapsSrc = `https://www.google.com/maps?q=${encodeURIComponent(CONTACT.mapsQuery)}&output=embed`;
+  const mapsSrc = mapsEmbed || `https://www.google.com/maps?q=${encodeURIComponent(CONTACT.mapsQuery)}&output=embed`;
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-16">

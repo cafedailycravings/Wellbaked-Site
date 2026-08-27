@@ -18,7 +18,7 @@ const TABS = [
   { id: "inquiries", label: "Inquiries", icon: Inbox },
   { id: "delivery", label: "Delivery Zones", icon: MapPin },
   { id: "content", label: "Site Content", icon: FileText },
-  { id: "instagram", label: "Instagram", icon: Instagram },
+  { id: "instagram", label: "Instagram & Maps", icon: Instagram },
   { id: "payment", label: "Payment Gateway", icon: CreditCard },
   { id: "profile", label: "Profile", icon: User },
 ];
@@ -717,38 +717,70 @@ function ReviewsTab() {
 }
 
 function InstagramTab() {
-  const [data, setData] = useState({ handle: "dailycravings", posts: [] });
-  useEffect(() => { api.get("/content/instagram").then(r => r.data.value && setData(r.data.value)); }, []);
+  const [data, setData] = useState({ handle: "cafedailycravings", posts: [] });
+  const [reels, setReels] = useState({ urls: ["", "", ""] });
+  const [maps, setMaps] = useState({ embed_url: "" });
+  useEffect(() => {
+    api.get("/content/instagram").then(r => r.data.value && setData(r.data.value));
+    api.get("/content/reels").then(r => r.data.value?.urls && setReels({ urls: [...r.data.value.urls, "", "", ""].slice(0,3) }));
+    api.get("/content/maps").then(r => r.data.value && setMaps(r.data.value));
+  }, []);
   const updatePost = (i, field, v) => {
     const posts = [...(data.posts || [])];
     while (posts.length <= i) posts.push({ image: "", caption: "", link: "" });
     posts[i] = { ...posts[i], [field]: v };
     setData({ ...data, posts });
   };
-  const save = async () => { await api.put("/admin/content", { key: "instagram", value: data }); toast.success("Instagram feed saved"); };
+  const setReel = (i, v) => { const u = [...reels.urls]; u[i] = v; setReels({ urls: u }); };
+  const saveIG = async () => { await api.put("/admin/content", { key: "instagram", value: data }); toast.success("Instagram feed saved"); };
+  const saveReels = async () => { await api.put("/admin/content", { key: "reels", value: { urls: reels.urls.filter(Boolean) } }); toast.success("Reels saved"); };
+  const saveMaps = async () => { await api.put("/admin/content", { key: "maps", value: maps }); toast.success("Maps saved"); };
   return (
-    <div>
-      <h1 className="font-serif text-3xl text-brown mb-2">Instagram Feed</h1>
-      <p className="text-brown-light text-sm mb-6">Paste up to 6 recent post images to display on the homepage. Add the post link so tapping opens Instagram.</p>
-      <div className="card p-5 mb-6">
+    <div className="space-y-8">
+      <h1 className="font-serif text-3xl text-brown">Instagram, Reels & Maps</h1>
+
+      {/* Instagram feed grid */}
+      <div className="card p-5">
+        <h3 className="font-serif text-xl text-brown mb-2">Homepage grid (6 posts)</h3>
+        <p className="text-brown-light text-sm mb-4">Paste up to 6 image URLs + optional post links + captions.</p>
         <label className="text-xs text-brown-muted uppercase tracking-widest">Instagram handle (without @)</label>
-        <input className="field mt-1" value={data.handle} onChange={e=>setData({...data, handle:e.target.value})} data-testid="ig-handle"/>
+        <input className="field mt-1 mb-4" value={data.handle} onChange={e=>setData({...data, handle:e.target.value})} data-testid="ig-handle"/>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({length: 6}).map((_, i) => {
+            const p = data.posts?.[i] || {};
+            return (
+              <div key={i} className="p-3 rounded-lg bg-cream2" data-testid={`ig-post-editor-${i}`}>
+                <div className="text-xs uppercase tracking-widest text-brown-muted mb-2">Post {i+1}</div>
+                {p.image && <img src={p.image} alt="" className="w-full aspect-square object-cover rounded-lg mb-2"/>}
+                <input className="field mb-2 text-xs" placeholder="Image URL" value={p.image||""} onChange={e=>updatePost(i,"image",e.target.value)}/>
+                <input className="field mb-2 text-xs" placeholder="Instagram post link" value={p.link||""} onChange={e=>updatePost(i,"link",e.target.value)}/>
+                <input className="field text-xs" placeholder="Caption" value={p.caption||""} onChange={e=>updatePost(i,"caption",e.target.value)}/>
+              </div>
+            );
+          })}
+        </div>
+        <button className="btn-primary mt-4" onClick={saveIG} data-testid="ig-save">Save grid</button>
       </div>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({length: 6}).map((_, i) => {
-          const p = data.posts?.[i] || {};
-          return (
-            <div key={i} className="card p-4" data-testid={`ig-post-editor-${i}`}>
-              <div className="text-xs uppercase tracking-widest text-brown-muted mb-2">Post {i+1}</div>
-              {p.image && <img src={p.image} alt="" className="w-full aspect-square object-cover rounded-lg mb-2"/>}
-              <input className="field mb-2 text-xs" placeholder="Image URL" value={p.image||""} onChange={e=>updatePost(i,"image",e.target.value)}/>
-              <input className="field mb-2 text-xs" placeholder="Instagram post link (optional)" value={p.link||""} onChange={e=>updatePost(i,"link",e.target.value)}/>
-              <input className="field text-xs" placeholder="Caption (optional)" value={p.caption||""} onChange={e=>updatePost(i,"caption",e.target.value)}/>
-            </div>
-          );
-        })}
+
+      {/* Instagram reels for About page */}
+      <div className="card p-5">
+        <h3 className="font-serif text-xl text-brown mb-2">Reels for About page (up to 3)</h3>
+        <p className="text-brown-light text-sm mb-4">Paste public Instagram reel URLs like <code>https://www.instagram.com/reel/CxxxYY/</code></p>
+        <div className="space-y-2">
+          {[0,1,2].map(i => (
+            <input key={i} className="field" placeholder={`Reel ${i+1} URL`} value={reels.urls[i]||""} onChange={e=>setReel(i,e.target.value)} data-testid={`reel-url-${i}`}/>
+          ))}
+        </div>
+        <button className="btn-primary mt-4" onClick={saveReels} data-testid="reels-save">Save reels</button>
       </div>
-      <button className="btn-primary mt-6" onClick={save} data-testid="ig-save">Save feed</button>
+
+      {/* Google Maps pin */}
+      <div className="card p-5">
+        <h3 className="font-serif text-xl text-brown mb-2">Google Maps pin (Contact page)</h3>
+        <p className="text-brown-light text-sm mb-4">On Google Maps, find your exact pin → Share → <strong>Embed a map</strong> → copy the <code>src</code> URL from the iframe HTML. Paste it below. Leave blank to use the address search fallback.</p>
+        <input className="field" placeholder="https://www.google.com/maps/embed?pb=..." value={maps.embed_url||""} onChange={e=>setMaps({embed_url:e.target.value})} data-testid="maps-embed"/>
+        <button className="btn-primary mt-4" onClick={saveMaps} data-testid="maps-save">Save map</button>
+      </div>
     </div>
   );
 }

@@ -19,7 +19,7 @@ export const CONTACT = {
   hours: "11:00 AM - 2:00 AM · All days",
   mapsQuery: "SCO 89B SBP City of Dreams Zirakpur Punjab 140603",
 };
-export const WA_LINK = `https://wa.me/${CONTACT.whatsapp}`;
+export const WA_LINK = `https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent("Hi Rustic Bakes! I'd like to place an order — could you help me?")}`;
 export const IG_LINK = `https://instagram.com/${CONTACT.instagramHandle}`;
 export const WA_QR = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=8&color=4A3022&bgcolor=F9F6F0&data=${encodeURIComponent(WA_LINK)}`;
 export const IG_QR = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=8&color=4A3022&bgcolor=F9F6F0&data=${encodeURIComponent(IG_LINK)}`;
