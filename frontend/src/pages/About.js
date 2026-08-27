@@ -24,7 +24,7 @@ export default function About() {
         {[[Wheat,"Heirloom flours","Sourced from small mills we know by name."],
           [Clock,"Slow ferment","48+ hours of patience in every loaf."],
           [Heart,"Small batch","Nothing mass-made. Nothing rushed."],
-          [Sparkles,"Real ingredients","Butter, eggs, sugar. Never a shortcut."]].map(([Icon,t,d],i)=>(
+          [Sparkles,"Real ingredients","Butter, cream, sugar — 100% eggless, always."]].map(([Icon,t,d],i)=>(
           <div key={i} className="card p-6">
             <Icon className="text-blush-dark" size={22}/>
             <h3 className="font-serif text-xl text-brown mt-4">{t}</h3>

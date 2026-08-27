@@ -26,7 +26,7 @@ export default function CategoryPage() {
               <div className="w-14 h-14 rounded-full bg-cream flex items-center justify-center shadow-medium">
                 <Icon size={26} style={{ color: tint }}/>
               </div>
-              <div className="wheat-line max-w-xs"><span>The collection</span></div>
+              <div className="wheat-line max-w-xs"><span>100% Eggless · Premium</span></div>
             </div>
             <h1 className="font-serif text-5xl lg:text-6xl text-brown leading-tight">{c.name}</h1>
             <p className="mt-5 text-brown-light text-lg leading-relaxed max-w-xl">{c.description}</p>

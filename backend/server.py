@@ -178,6 +178,29 @@ class CheckoutReq(BaseModel):
     delivery_address: str = ""
     notes: str = ""
     origin_url: str
+    gift_card_code: str = ""
+
+class GiftCardPurchaseReq(BaseModel):
+    amount: float = Field(gt=0)
+    purchaser_name: str
+    purchaser_email: EmailStr
+    recipient_name: str
+    recipient_email: EmailStr
+    personal_message: str = ""
+    origin_url: str
+
+class BulkOrderReq(BaseModel):
+    company_name: str
+    contact_name: str
+    email: EmailStr
+    phone: str = ""
+    gst_number: str = ""
+    billing_address: str = ""
+    delivery_date: str = ""
+    quantity: int = Field(gt=0)
+    product_preference: str = ""
+    budget: str = ""
+    notes: str = ""
 
 class SiteContentIn(BaseModel):
     key: str
@@ -405,6 +428,108 @@ async def get_loyalty(user=Depends(get_current_user)):
     return {"punches": u.get("punches", 0), "available_rewards": u.get("available_rewards", 0),
             "goal": LOYALTY_PUNCHES_REQUIRED}
 
+# --- Gift Cards ---
+def gen_gift_code():
+    import secrets
+    return "GIFT-" + secrets.token_hex(4).upper()
+
+@api.post("/gift-cards/purchase")
+async def purchase_gift_card(req: GiftCardPurchaseReq):
+    gc_id = str(uuid.uuid4())
+    code = gen_gift_code()
+    doc = {"id": gc_id, "code": code, "amount": float(req.amount), "balance": float(req.amount),
+           "purchaser_name": req.purchaser_name, "purchaser_email": req.purchaser_email,
+           "recipient_name": req.recipient_name, "recipient_email": req.recipient_email,
+           "personal_message": req.personal_message, "status": "pending",
+           "created_at": now_iso()}
+    try:
+        from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+        sc = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=f"{req.origin_url}/api/webhook/stripe")
+        sess = await sc.create_checkout_session(CheckoutSessionRequest(
+            amount=float(req.amount), currency="inr",
+            success_url=f"{req.origin_url}/gift-cards/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{req.origin_url}/gift-cards",
+            metadata={"gift_card_id": gc_id, "type": "gift_card"},
+        ))
+        doc["session_id"] = sess.session_id
+        await db.gift_cards.insert_one(doc)
+        return {"checkout_url": sess.url, "session_id": sess.session_id}
+    except Exception as e:
+        logger.error(f"Gift card checkout err: {e}")
+        raise HTTPException(500, "Payment init failed")
+
+async def deliver_gift_card(gc: dict):
+    """Called after Stripe confirms gift-card payment."""
+    try:
+        html = f"""<div style='font-family:Georgia,serif;background:#F9F6F0;padding:32px;color:#4A3022'>
+          <div style='max-width:600px;margin:auto;background:#fff;border-radius:16px;padding:32px'>
+            <h1 style='font-family:Georgia,serif'>You've been gifted a Rustic Bakes treat</h1>
+            <p>Hi {gc['recipient_name']}, {gc['purchaser_name']} sent you a gift card worth <strong>&#8377;{gc['amount']:.2f}</strong>.</p>
+            {'<p style="background:#F3EFE6;padding:16px;border-radius:8px;font-style:italic">'+gc['personal_message']+'</p>' if gc.get('personal_message') else ''}
+            <p>Use this code at checkout:</p>
+            <div style='background:#4A3022;color:#F9F6F0;padding:16px;text-align:center;border-radius:12px;font-family:monospace;font-size:20px;letter-spacing:2px'>{gc['code']}</div>
+            <p style='color:#7A5A4A;font-size:13px;margin-top:24px'>Redeem anytime · Baked with love</p>
+          </div></div>"""
+        if RESEND_API_KEY and not RESEND_API_KEY.startswith("re_placeholder"):
+            await asyncio.to_thread(resend.Emails.send, {"from": SENDER_EMAIL, "to": [gc["recipient_email"]],
+                "subject": f"You've been gifted a Rustic Bakes treat from {gc['purchaser_name']}", "html": html})
+    except Exception as e:
+        logger.error(f"Gift card email failed: {e}")
+
+@api.get("/gift-cards/status/{session_id}")
+async def gift_card_status(session_id: str):
+    gc = await db.gift_cards.find_one({"session_id": session_id}, {"_id": 0})
+    if not gc: raise HTTPException(404, "Not found")
+    if gc["status"] == "pending":
+        try:
+            from emergentintegrations.payments.stripe.checkout import StripeCheckout
+            sc = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
+            s = await sc.get_checkout_status(session_id)
+            if s.payment_status == "paid":
+                await db.gift_cards.update_one({"session_id": session_id, "status": "pending"},
+                    {"$set": {"status": "active", "activated_at": now_iso()}})
+                gc["status"] = "active"
+                asyncio.create_task(deliver_gift_card(gc))
+        except Exception as e:
+            logger.error(f"GC status err: {e}")
+    return {"status": gc["status"], "code": gc["code"] if gc["status"] == "active" else None,
+            "amount": gc["amount"], "recipient_email": gc["recipient_email"]}
+
+@api.get("/gift-cards/check/{code}")
+async def check_gift_card(code: str):
+    gc = await db.gift_cards.find_one({"code": code.upper(), "status": "active"}, {"_id": 0, "purchaser_email": 0, "recipient_email": 0})
+    if not gc: return {"valid": False}
+    return {"valid": True, "balance": gc.get("balance", 0), "code": gc["code"]}
+
+@api.get("/admin/gift-cards")
+async def list_gift_cards(user=Depends(get_current_admin)):
+    return await db.gift_cards.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+# --- Bulk Orders (Corporate RFQ) ---
+@api.post("/bulk-orders")
+async def create_bulk_order(req: BulkOrderReq):
+    doc = req.model_dump()
+    doc["id"] = str(uuid.uuid4())
+    doc["status"] = "new"
+    doc["created_at"] = now_iso()
+    await db.bulk_orders.insert_one(doc)
+    summary = (f"🏢 Bulk order enquiry — {doc['company_name']}\n"
+               f"Contact: {doc['contact_name']} ({doc['email']}, {doc['phone']})\n"
+               f"Quantity: {doc['quantity']} · Delivery: {doc['delivery_date']}\n"
+               f"Preference: {doc.get('product_preference','—')}\n"
+               f"Budget: {doc.get('budget','—')} · GST: {doc.get('gst_number','—')}")
+    asyncio.create_task(send_whatsapp_text(summary))
+    return {"success": True, "id": doc["id"]}
+
+@api.get("/admin/bulk-orders")
+async def list_bulk_orders(user=Depends(get_current_admin)):
+    return await db.bulk_orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(300)
+
+@api.put("/admin/bulk-orders/{bid}")
+async def update_bulk_order(bid: str, data: dict, user=Depends(get_current_admin)):
+    await db.bulk_orders.update_one({"id": bid}, {"$set": {"status": data.get("status", "new")}})
+    return {"success": True}
+
 # --- Wishlist ---
 @api.get("/wishlist")
 async def get_wishlist(user=Depends(get_current_user)):
@@ -623,11 +748,20 @@ async def create_checkout(req: CheckoutReq, request: Request):
     if not req.items:
         raise HTTPException(400, "Cart is empty")
     total = round(sum(i.price * i.quantity for i in req.items), 2)
+    gift_discount = 0.0
+    gift_card_code = None
+    if req.gift_card_code:
+        gc = await db.gift_cards.find_one({"code": req.gift_card_code.upper(), "status": "active"})
+        if gc and gc.get("balance", 0) > 0:
+            gift_discount = min(gc["balance"], total)
+            gift_card_code = gc["code"]
+    final_total = max(0, round(total - gift_discount, 2))
     order_id = str(uuid.uuid4())
     user = await get_optional_user(request)
     order = {
         "id": order_id, "items": [i.model_dump() for i in req.items],
-        "total": total, "currency": "inr",
+        "subtotal": total, "gift_discount": gift_discount, "gift_card_code": gift_card_code,
+        "total": final_total, "currency": "inr",
         "customer_name": req.customer_name, "customer_email": req.customer_email,
         "customer_phone": req.customer_phone, "delivery_address": req.delivery_address,
         "notes": req.notes, "status": "pending", "payment_status": "pending",
@@ -635,12 +769,29 @@ async def create_checkout(req: CheckoutReq, request: Request):
         "created_at": now_iso(), "updated_at": now_iso(),
     }
 
+    # If the gift card covers the full order, no Stripe checkout needed
+    if final_total <= 0:
+        order["payment_status"] = "paid"
+        order["status"] = "confirmed"
+        order["session_id"] = f"giftcard-{order_id}"
+        await db.orders.insert_one(order)
+        # deduct gift card balance
+        await db.gift_cards.update_one({"code": gift_card_code},
+            {"$inc": {"balance": -gift_discount}})
+        asyncio.create_task(send_order_confirmation(order))
+        asyncio.create_task(decrement_stock_and_alert(order["items"]))
+        if order.get("user_id"):
+            await add_loyalty_punch(order["user_id"])
+            await process_referral(order["user_id"])
+        return {"checkout_url": f"{req.origin_url}/payment/success?session_id={order['session_id']}",
+                "session_id": order["session_id"], "order_id": order_id, "free": True}
+
     try:
         from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
         webhook_url = f"{req.origin_url}/api/webhook/stripe"
         sc = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
         sess_req = CheckoutSessionRequest(
-            amount=float(total), currency="inr",
+            amount=float(final_total), currency="inr",
             success_url=f"{req.origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{req.origin_url}/cart",
             metadata={"order_id": order_id, "customer_email": req.customer_email},
@@ -662,27 +813,33 @@ async def payment_status(session_id: str):
         try:
             from emergentintegrations.payments.stripe.checkout import StripeCheckout
             sc = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
-            status_resp = await sc.get_checkout_status(session_id)
-            if status_resp.payment_status == "paid" and order.get("payment_status") != "paid":
-                await db.orders.update_one(
-                    {"session_id": session_id, "payment_status": {"$ne": "paid"}},
-                    {"$set": {"payment_status": "paid", "status": "confirmed", "updated_at": now_iso()}})
-                order["payment_status"] = "paid"
-                order["status"] = "confirmed"
-                asyncio.create_task(send_order_confirmation(order))
-                asyncio.create_task(decrement_stock_and_alert(order["items"]))
-                if order.get("user_id"):
-                    await add_loyalty_punch(order["user_id"])
-                    await process_referral(order["user_id"])
-                items_txt = ", ".join(f"{it['name']} x {it['quantity']}" for it in order["items"])
-                asyncio.create_task(send_whatsapp_text(
-                    f"🎉 New paid order — Rustic Bakes\n\n"
-                    f"Order #{order['id'][:8]}\n"
-                    f"Customer: {order['customer_name']}\n"
-                    f"Total: ₹{order['total']:.2f}\n"
-                    f"Phone: {order.get('customer_phone','—')}\n"
-                    f"Items: {items_txt}"
-                ))
+            s = await sc.get_checkout_status(session_id)
+            if s.payment_status == "paid":
+                # Look up as order first
+                order2 = await db.orders.find_one({"session_id": session_id, "payment_status": {"$ne":"paid"}})
+                if order2:
+                    await db.orders.update_one({"session_id": session_id, "payment_status": {"$ne": "paid"}},
+                        {"$set": {"payment_status": "paid", "status": "confirmed", "updated_at": now_iso()}})
+                    if order2.get("gift_card_code") and order2.get("gift_discount", 0) > 0:
+                        await db.gift_cards.update_one({"code": order2["gift_card_code"]},
+                            {"$inc": {"balance": -order2["gift_discount"]}})
+                    order2["payment_status"] = "paid"
+                    order2["status"] = "confirmed"
+                    order = order2
+                    asyncio.create_task(send_order_confirmation(order))
+                    asyncio.create_task(decrement_stock_and_alert(order["items"]))
+                    if order.get("user_id"):
+                        await add_loyalty_punch(order["user_id"])
+                        await process_referral(order["user_id"])
+                    items_txt = ", ".join(f"{it['name']} x {it['quantity']}" for it in order["items"])
+                    asyncio.create_task(send_whatsapp_text(
+                        f"🎉 New paid order — Rustic Bakes\n\n"
+                        f"Order #{order['id'][:8]}\n"
+                        f"Customer: {order['customer_name']}\n"
+                        f"Total: ₹{order['total']:.2f}\n"
+                        f"Phone: {order.get('customer_phone','—')}\n"
+                        f"Items: {items_txt}"
+                    ))
         except Exception as e:
             logger.error(f"Status check failed: {e}")
     return {"session_id": session_id, "payment_status": order.get("payment_status"),

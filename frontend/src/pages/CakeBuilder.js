@@ -68,7 +68,7 @@ export default function CakeBuilder() {
     <div className="max-w-7xl mx-auto px-6 py-12">
       <div className="wheat-line mb-3 max-w-xs"><span>Cake Builder</span></div>
       <h1 className="font-serif text-5xl text-brown flex items-center gap-3">Design your dream cake <Sparkles className="text-gold" size={28}/></h1>
-      <p className="text-brown-light mt-3 max-w-2xl">Pick every detail — from flavour to the message on top. We'll bake it fresh with 48-hour notice.</p>
+          <p className="text-brown-light mt-3 max-w-2xl">Pick every detail — from flavour to the message on top. Every cake is 100% eggless and baked fresh with 48-hour notice.</p>
 
       <div className="grid lg:grid-cols-12 gap-10 mt-10">
         {/* Live preview */}

@@ -87,7 +87,7 @@ export default function Product() {
           )}
           <div className="font-serif text-3xl text-brown mt-4" data-testid="product-price">{fmt(p.price)}</div>
           <p className="mt-6 text-brown-light leading-relaxed">{p.description}</p>
-          <div className="mt-6 flex items-center gap-4 text-sm text-brown-light"><Clock size={16}/> Lead time: {p.lead_time_hours}h · Ready for pickup or delivery</div>
+          <div className="mt-6 flex items-center gap-4 text-sm text-brown-light"><Clock size={16}/> Lead time: {p.lead_time_hours}h · 100% Eggless · Ready for pickup or delivery</div>
           <div className="mt-8 flex items-center gap-4">
             <div className="flex items-center border border-brown/20 rounded-full">
               <button onClick={() => setQty(Math.max(1, qty-1))} className="p-3" data-testid="qty-dec"><Minus size={14}/></button>

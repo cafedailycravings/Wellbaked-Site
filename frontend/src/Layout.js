@@ -30,6 +30,10 @@ export function Nav() {
   const isCustomer = user && user.role === "customer";
 
   return (
+    <>
+    <div className="bg-brown text-cream text-center text-xs py-2 tracking-[0.25em] uppercase" data-testid="eggless-bar">
+      <span className="text-blush">✦</span> 100% Eggless · Premium Cakes · Baked Fresh Daily <span className="text-blush">✦</span>
+    </div>
     <header className="sticky top-0 z-40 backdrop-blur-xl bg-cream/80 border-b border-brown/10">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3" data-testid="nav-home-link">
@@ -81,6 +85,7 @@ export function Nav() {
         </div>
       )}
     </header>
+    </>
   );
 }
 
@@ -98,7 +103,7 @@ export function Footer() {
               <div className="font-script text-blush text-sm">by Daily Cravings</div>
             </div>
           </div>
-          <p className="text-cream/70 text-sm leading-relaxed">Small-batch artisan bakery. Homemade goodness. Baked with love, every single morning.</p>
+          <p className="text-cream/70 text-sm leading-relaxed">Small-batch artisan bakery. 100% eggless. Premium ingredients. Baked with love, every single morning.</p>
         </div>
         <div>
           <h4 className="text-xs tracking-[0.25em] text-blush mb-4">Shop</h4>

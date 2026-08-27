@@ -29,7 +29,7 @@ export default function Home() {
       <section className="relative overflow-hidden grain">
         <div className="max-w-7xl mx-auto px-6 pt-14 pb-20 grid lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-6 relative z-10 animate-fade-up">
-            <div className="wheat-line mb-6"><Wheat size={14}/> Homemade Goodness</div>
+            <div className="wheat-line mb-6"><Wheat size={14}/> 100% Eggless · Premium Bakes</div>
             <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl leading-[1.05] text-brown">
               {(hero.title || "Baked with Love,\nEvery Single Morning").split("\n").map((s,i)=>(<span key={i} className="block">{i===1 && <em className="font-script text-blush-dark not-italic">{s}</em>}{i!==1 && s}</span>))}
             </h1>
@@ -64,7 +64,7 @@ export default function Home() {
       {/* Value strip */}
       <section className="bg-cream2 border-y border-brown/10">
         <div className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-brown">
-          {[[Wheat,"Heirloom flours"],[Clock,"48-hour ferment"],[Heart,"Family recipes"],[Award,"Zero shortcuts"]].map(([Icon,t],i)=>(
+          {[[Wheat,"Heirloom flours"],[Clock,"48-hour ferment"],[Heart,"100% Eggless"],[Award,"Premium quality"]].map(([Icon,t],i)=>(
             <div key={i} className="flex items-center gap-3"><Icon size={20} className="text-blush-dark"/><span className="text-sm font-medium">{t}</span></div>
           ))}
         </div>

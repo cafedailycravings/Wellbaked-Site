@@ -19,9 +19,9 @@ export default function Shop() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
-      <div className="wheat-line mb-3 max-w-xs"><span>Fresh Menu</span></div>
+      <div className="wheat-line mb-3 max-w-xs"><span>100% Eggless · Fresh Menu</span></div>
       <h1 className="font-serif text-5xl text-brown">Everything we bake</h1>
-      <p className="text-brown-light mt-3 max-w-2xl">Slow-fermented breads, hand-decorated cakes, and everything sweet in between. Made in small batches, sold while it's warm.</p>
+      <p className="text-brown-light mt-3 max-w-2xl">Premium, 100% eggless bakes — slow-fermented breads, hand-decorated cakes, and everything sweet in between. Made in small batches, sold while it's warm.</p>
 
       <div className="mt-10 flex flex-wrap gap-2">
         <button onClick={() => setParams({})} data-testid="filter-all"

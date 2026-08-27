@@ -48,7 +48,7 @@ export default function Gifting() {
               <em className="font-script text-blush-dark not-italic">warm, wrapped, and unforgettable.</em>
             </h1>
             <p className="mt-5 text-brown-light text-lg leading-relaxed max-w-xl">
-              From bespoke cakes to corporate hampers, we bake, pack, and hand-deliver every gift with a handwritten note.
+              From bespoke 100% eggless cakes to premium corporate hampers, we bake, pack, and hand-deliver every gift with a handwritten note.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a href="#request" className="btn-primary" data-testid="gifting-cta">Plan a gift <ArrowRight size={18}/></a>
