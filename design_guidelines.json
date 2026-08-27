@@ -1,0 +1,136 @@
+{
+  "project_name": "Rustic Bakes by Daily Cravings",
+  "theme": "Light theme (warm, organic, vintage bakery vibe with a modern layout).",
+  "typography": {
+    "headings": {
+      "family": "Playfair Display, serif",
+      "weights": ["400", "600", "700"],
+      "usage": "Use tight letter spacing (tracking-tight) for large headers. Never use generic sans-serif for headings to maintain the rustic, artisanal brand voice.",
+      "scales": {
+        "h1": "text-4xl sm:text-5xl lg:text-6xl",
+        "h2": "text-2xl sm:text-3xl lg:text-4xl",
+        "h3": "text-xl sm:text-2xl",
+        "h4": "text-lg sm:text-xl"
+      }
+    },
+    "body": {
+      "family": "Manrope, sans-serif",
+      "weights": ["300", "400", "500"],
+      "usage": "Use leading-relaxed for body text to ensure maximum legibility, contrasting the classic serif headings.",
+      "scales": {
+        "base": "text-base",
+        "small": "text-sm",
+        "labels": "text-xs uppercase tracking-[0.2em]"
+      }
+    }
+  },
+  "colors": {
+    "archetype": "ORGANIC & EARTHY",
+    "background": {
+      "default": "#F9F6F0",
+      "card": "#FFFFFF",
+      "muted": "#F3EFE6",
+      "admin_bg": "#F5F3EC"
+    },
+    "text": {
+      "primary": "#4A3022",
+      "secondary": "#7A5A4A",
+      "muted": "#A68A7A",
+      "inverse": "#F9F6F0"
+    },
+    "brand": {
+      "primary": "#4A3022",
+      "primary_hover": "#362217",
+      "accent": "#E8B4B8",
+      "accent_hover": "#D89DA3",
+      "gold": "#D4AF37"
+    },
+    "border": {
+      "default": "rgba(74, 48, 34, 0.1)",
+      "focus": "#D4AF37",
+      "admin": "rgba(74, 48, 34, 0.15)"
+    },
+    "rules": "Match the provided logo: Base text is rich dark brown. Base background is warm cream/off-white. Accent color is soft pink for highlights or secondary CTAs. Gold/Wheat for borders or active states."
+  },
+  "visual_enhancers": {
+    "shadows": {
+      "sm": "0 2px 8px rgba(74, 48, 34, 0.05)",
+      "md": "0 4px 16px rgba(74, 48, 34, 0.08)",
+      "lg": "0 12px 32px rgba(74, 48, 34, 0.12)"
+    },
+    "radii": {
+      "button": "9999px",
+      "card": "16px",
+      "image": "12px",
+      "admin_card": "8px"
+    },
+    "textures": "Include subtle noise overlays or warm gradients in hero sections to emulate a tactile, flour-dusted, homemade feel."
+  },
+  "component_strategy": {
+    "marketing_pages": "Use pure HTML/Tailwind for layouts. Implement generous spacing (p-12 to p-24) and asymmetrical image placements to keep it organic, avoiding stiff Shadcn cards for front-end product storytelling.",
+    "admin_dashboard": "Use Shadcn UI primitives extensively. Build dense bento grids (grid-cols-1 md:grid-cols-3 lg:grid-cols-4), tight spacing (p-4 to p-6), functional and clear hierarchy.",
+    "buttons": "Pill-shaped (rounded-full) for primary marketing CTAs, utilizing solid dark brown background with cream text. Admin buttons can use standard sm/md radii.",
+    "navigation": "Sticky glassmorphism header (backdrop-blur-xl bg-[#F9F6F0]/80 border-b border-[#4A3022]/10) to ensure the logo and links remain visible over hero sections."
+  },
+  "grids_and_layouts": {
+    "spacing_scale": "p-1, p-2, p-4, p-6, p-8, p-12, p-16, p-20, p-24, p-32",
+    "marketing_grid": "Asymmetrical 'Tetris' grid for category features (e.g. gap-8 to gap-12, mixing col-span-8 and col-span-4).",
+    "dashboard_grid": "High density (gap-4 or gap-6) strict hierarchy. Full utilization of screen real-estate for Inventory, Orders, and Metrics.",
+    "alignment": "Left-align dense text and labels. Optical alignment for icons inside buttons."
+  },
+  "motion": {
+    "hover_states": "Slight lift (-translate-y-1) and shadow expansion (shadow-md) for product cards and primary buttons.",
+    "transitions": "Use specific transitions: transition-transform duration-300 ease-out, transition-opacity duration-200. NO universal transition-all.",
+    "entrance": "Staggered fade-in-up for product grids and list items."
+  },
+  "accessibility": {
+    "contrast": "Ensure text over images has sufficient contrast. Use gradient overlays (bg-gradient-to-t from-[#4A3022]/80 to-transparent) on bottom of images if text is overlaid.",
+    "focus": "Focus states must use ring-2 ring-[#4A3022] outline-none on all interactive elements.",
+    "motion": "Respect prefers-reduced-motion CSS media query."
+  },
+  "media": {
+    "image_rules": "Never use placeholder URLs. Preserve image aspect ratios with object-cover. Use max-h-[80vh] for hero images on mobile.",
+    "image_urls": {
+      "logo": "https://customer-assets-eiarnc6j.emergentagent.net/job_rustic-craving/artifacts/dvhgjjo3_Logo.jpeg",
+      "hero_interior": "https://images.unsplash.com/photo-1632692166489-fd6568dee2e1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHw0fHxiYWtlcnklMjBpbnRlcmlvciUyMHdhcm0lMjBsaWdodCUyMGNoZWZ8ZW58MHx8fHwxNzg3NzYyNTEwfDA&ixlib=rb-4.1.0&q=85",
+      "bread_category": "https://images.unsplash.com/photo-1586765501019-cbe3973ef8fa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2ODh8MHwxfHNlYXJjaHwzfHxydXN0aWMlMjBhcnRpc2FuJTIwYmFrZXJ5JTIwYnJlYWQlMjBsb2FmfGVufDB8fHx8MTc4Nzc2MjUxMHww&ixlib=rb-4.1.0&q=85",
+      "cakes_category": "https://images.pexels.com/photos/2144112/pexels-photo-2144112.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "pastries_category": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NjZ8MHwxfHNlYXJjaHwyfHxmcmVzaCUyMGJha2VkJTIwY3JvaXNzYW50cyUyMHBhc3RyaWVzfGVufDB8fHx8MTc4Nzc2MjUxMHww&ixlib=rb-4.1.0&q=85",
+      "cookies_category": "https://images.unsplash.com/photo-1557310717-d6bea9f36682?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwxfHxob21lbWFkZSUyMGNob2NvbGF0ZSUyMGNoaXAlMjBjb29raWVzJTIwc3RhY2t8ZW58MHx8fHwxNzg3NzYyNTExfDA&ixlib=rb-4.1.0&q=85",
+      "about_us": "https://images.unsplash.com/photo-1536782896453-61d09f3aaf3e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwyfHxiYWtlcnklMjBpbnRlcmlvciUyMHdhcm0lMjBsaWdodCUyMGNoZWZ8ZW58MHx8fHwxNzg3NzYyNTEwfDA&ixlib=rb-4.1.0&q=85"
+    }
+  },
+  "instructions_to_main_agent": [
+    "You MUST write valid .js files, NOT .tsx files.",
+    "Do NOT use HTML-based components for advanced user interactions (dropdown, calendar, toast). Use Shadcn UI logic wrapped in custom Tailwind styling.",
+    "Include data-testid attributes on ALL interactive elements (e.g., data-testid='add-to-cart-button', data-testid='category-filter-cakes', data-testid='admin-login-button').",
+    "Never use generic Emojis (e.g. 🤖, 🍞). Use lucide-react icons for UI elements.",
+    "DO NOT use a complete transparent background in headers, overlays, or dropdowns. ALWAYS use glassmorphism (backdrop-blur-xl + bg-opacity) or solid background.",
+    "Ensure 'orders@cafedailycravings.com' is explicitly visible on the Contact page and Global Footer.",
+    "Never use placeholder image URLs like via.placeholder.com. Use the provided high-end image_urls.",
+    "Use Lucide-React for standard icons (already installed)."
+  ],
+  "universal_guidelines_for_main_agent": [
+    "You tend to converge toward generic, 'on distribution' outputs. Make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition (e.g., transition: all). Always add transitions for specific interactive elements excluding transforms.",
+    "You MUST NOT center align the app container, i.e., do not add .App { text-align: center; } in the css file.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER use AI assistant Emoji characters for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, custom selection states, and loading animations separate good from extraordinary.",
+    "Prioritize using pre-existing components from src/components/ui. Check them before building from scratch.",
+    "Use 'sonner' for toast notifications."
+  ],
+  "GENERAL_UI_UX_DESIGN_GUIDELINES": [
+    "Prioritize clear user pathways: Admin pathways must be strictly separated from E-commerce pathways visually.",
+    "All forms (Contact, Inquiry, Checkout) must have clear validation states and error messages.",
+    "Product pages must state clear lead times, pickup windows, and available customizations.",
+    "Use high-contrast visual cues for Admin Dashboard stock alerts and new orders.",
+    "Include empty states for Cart, Orders, and Inquiries with helpful CTAs."
+  ]
+}
