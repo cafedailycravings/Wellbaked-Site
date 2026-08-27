@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, getUser, setUser, fmt } from "../lib";
 import { toast } from "sonner";
-import { Award, Cookie, Heart, Trash2 } from "lucide-react";
+import { Award, Cookie, Heart, Trash2, Gift, Copy, Share2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function Account() {
@@ -12,13 +12,24 @@ export default function Account() {
   const [orders, setOrders] = useState([]);
   const [loyalty, setLoyalty] = useState({ punches: 0, available_rewards: 0, goal: 10 });
   const [wishlist, setWishlist] = useState([]);
+  const [refer, setRefer] = useState({ referral_code: "", completed: 0, goal: 3, share_message: "" });
   useEffect(() => {
     if (!u) { nav("/login?redirect=/account"); return; }
     api.get("/auth/me").then(r => { setU(r.data); setForm({name:r.data.name||"", phone:r.data.phone||"", address:r.data.address||"", password:""}); });
     api.get("/auth/orders").then(r => setOrders(r.data)).catch(()=>{});
     api.get("/loyalty").then(r => setLoyalty(r.data)).catch(()=>{});
     api.get("/wishlist").then(r => setWishlist(r.data)).catch(()=>{});
+    api.get("/referrals").then(r => setRefer(r.data)).catch(()=>{});
   }, [nav]); // eslint-disable-line
+
+  const shareLink = () => `${window.location.origin}/login?ref=${refer.referral_code}`;
+  const copyLink = () => { navigator.clipboard.writeText(shareLink()); toast.success("Referral link copied"); };
+  const shareNative = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: "Rustic Bakes by Daily Cravings", text: refer.share_message, url: shareLink() }); }
+      catch {}
+    } else { copyLink(); }
+  };
 
   const removeFromWishlist = async (pid) => {
     await api.post(`/wishlist/${pid}`);
@@ -63,6 +74,35 @@ export default function Account() {
                 <Cookie size={16}/>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Referral card */}
+      <div className="mt-6 card p-8 border-2 border-gold/40" data-testid="referral-card"
+           style={{ background: "linear-gradient(135deg, #F9F6F0 0%, #F3EFE6 100%)" }}>
+        <div className="flex flex-wrap justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 text-blush-dark text-xs uppercase tracking-[0.25em]"><Gift size={14}/> Invite friends</div>
+            <h3 className="font-serif text-2xl text-brown mt-2">Share the goodness, earn free bakes</h3>
+            <p className="text-brown-light text-sm mt-2 max-w-md">Invite {refer.goal} friends and get one free bake on us. You're at <strong>{refer.completed}/{refer.goal}</strong>.</p>
+            <div className="mt-4 inline-flex items-center gap-2 bg-cream border border-brown/15 rounded-full px-4 py-2">
+              <span className="text-xs uppercase tracking-widest text-brown-muted">Your code</span>
+              <span className="font-serif text-lg text-brown tracking-wider" data-testid="ref-code">{refer.referral_code}</span>
+            </div>
+          </div>
+          <div className="flex flex-col justify-between gap-3">
+            <div className="flex gap-2">
+              {Array.from({length: refer.goal}).map((_,i)=>(
+                <div key={i} className={"w-10 h-10 rounded-full flex items-center justify-center border-2 " + (i < refer.completed ? "bg-gold border-gold text-brown-dark" : "border-brown/20 text-brown-muted")}>
+                  <Heart size={16}/>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={copyLink} className="btn-ghost text-sm" data-testid="ref-copy"><Copy size={14}/> Copy link</button>
+              <button onClick={shareNative} className="btn-primary text-sm" data-testid="ref-share"><Share2 size={14}/> Share</button>
+            </div>
           </div>
         </div>
       </div>

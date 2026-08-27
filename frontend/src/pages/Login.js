@@ -7,8 +7,9 @@ export default function Login() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const redirect = params.get("redirect") || "/";
-  const [mode, setMode] = useState("login");
-  const [form, setForm] = useState({ email: "", password: "", name: "", phone: "", address: "" });
+  const initialRef = params.get("ref") || "";
+  const [mode, setMode] = useState(initialRef ? "register" : "login");
+  const [form, setForm] = useState({ email: "", password: "", name: "", phone: "", address: "", referral_code: initialRef });
   const [loading, setLoading] = useState(false);
 
   const submit = async (e) => {
@@ -41,6 +42,7 @@ export default function Login() {
               <input required className="field" placeholder="Full name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} data-testid="reg-name"/>
               <input className="field" placeholder="Phone" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} data-testid="reg-phone"/>
               <input className="field" placeholder="Delivery address" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} data-testid="reg-address"/>
+              <input className="field" placeholder="Referral code (optional)" value={form.referral_code} onChange={e=>setForm({...form,referral_code:e.target.value.toUpperCase()})} data-testid="reg-referral" style={{textTransform:"uppercase"}}/>
             </>
           )}
           <input required type="email" className="field" placeholder="Email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} data-testid="login-email"/>

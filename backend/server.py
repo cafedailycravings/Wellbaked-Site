@@ -128,6 +128,7 @@ class RegisterReq(BaseModel):
     name: str
     phone: str = ""
     address: str = ""
+    referral_code: str = ""
 
 class ProductIn(BaseModel):
     name: str
@@ -189,16 +190,24 @@ async def register(req: RegisterReq):
     if existing:
         raise HTTPException(400, "Email already registered")
     uid = str(uuid.uuid4())
+    my_code = uid[:8].upper()
+    referred_by = None
+    if req.referral_code:
+        ref = await db.users.find_one({"referral_code": req.referral_code.upper()})
+        if ref: referred_by = ref["id"]
     await db.users.insert_one({
         "id": uid, "email": req.email.lower(),
         "password_hash": hash_password(req.password),
         "name": req.name, "phone": req.phone, "address": req.address,
         "role": "customer", "created_at": now_iso(),
+        "referral_code": my_code, "referred_by": referred_by,
+        "referrals_completed": 0,
     })
     token = create_token(uid, req.email.lower())
     return {"access_token": token, "token_type": "bearer",
             "user": {"id": uid, "email": req.email.lower(), "name": req.name,
-                     "phone": req.phone, "address": req.address, "role": "customer"}}
+                     "phone": req.phone, "address": req.address, "role": "customer",
+                     "referral_code": my_code}}
 
 @api.post("/auth/login")
 async def login(req: LoginReq):
@@ -233,7 +242,7 @@ async def my_orders(user=Depends(get_current_user)):
 # --- Products ---
 @api.get("/products")
 async def list_products(category: Optional[str] = None, featured: Optional[bool] = None):
-    q = {"is_active": True}
+    q = {"is_active": True, "stock": {"$gt": 0}}
     if category: q["category"] = category
     if featured is not None: q["is_featured"] = featured
     items = await db.products.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
@@ -356,6 +365,39 @@ async def add_loyalty_punch(user_id: str):
         rewards += 1
         punches = 0
     await db.users.update_one({"id": user_id}, {"$set": {"punches": punches, "available_rewards": rewards}})
+
+REFERRALS_REQUIRED = 3
+
+async def process_referral(buyer_user_id: str):
+    """When a referred buyer completes a paid order, credit the referrer."""
+    buyer = await db.users.find_one({"id": buyer_user_id})
+    if not buyer or not buyer.get("referred_by"): return
+    # Only credit on the buyer's FIRST paid order (prevent farming)
+    paid_count = await db.orders.count_documents({"user_id": buyer_user_id, "payment_status": "paid"})
+    if paid_count > 1: return
+    referrer_id = buyer["referred_by"]
+    referrer = await db.users.find_one({"id": referrer_id})
+    if not referrer: return
+    count = referrer.get("referrals_completed", 0) + 1
+    rewards = referrer.get("available_rewards", 0)
+    if count >= REFERRALS_REQUIRED:
+        rewards += 1
+        count = 0
+        asyncio.create_task(send_whatsapp_text(
+            f"🎁 Referral milestone!\n{referrer.get('name','Someone')} unlocked a free bake by inviting {REFERRALS_REQUIRED} friends."))
+    await db.users.update_one({"id": referrer_id}, {"$set": {"referrals_completed": count, "available_rewards": rewards}})
+
+@api.get("/referrals")
+async def get_referrals(user=Depends(get_current_user)):
+    u = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    code = u.get("referral_code")
+    if not code:
+        # backfill for older users
+        code = user["id"][:8].upper()
+        await db.users.update_one({"id": user["id"]}, {"$set": {"referral_code": code}})
+    return {"referral_code": code, "completed": u.get("referrals_completed", 0),
+            "goal": REFERRALS_REQUIRED,
+            "share_message": f"Try Rustic Bakes by Daily Cravings and use my code {code} for a warm welcome! Order at {os.environ.get('SITE_URL','')}?ref={code}"}
 
 @api.get("/loyalty")
 async def get_loyalty(user=Depends(get_current_user)):
@@ -502,6 +544,32 @@ async def upsert_content(c: SiteContentIn, user=Depends(get_current_admin)):
     return {"success": True}
 
 # --- Orders / Stripe ---
+async def send_sold_out_alert(product: dict):
+    subject = f"Sold out: {product['name']}"
+    body = f"'{product['name']}' just hit 0 stock and is now hidden from the shop. Restock and update inventory when ready."
+    try:
+        if RESEND_API_KEY and not RESEND_API_KEY.startswith("re_placeholder"):
+            html = f"<div style='font-family:Georgia;color:#4A3022;padding:24px'><h2>🥐 {subject}</h2><p>{body}</p><p><a href='#' style='color:#B85450'>Update inventory</a></p></div>"
+            await asyncio.to_thread(resend.Emails.send, {
+                "from": SENDER_EMAIL, "to": [OWNER_EMAIL], "subject": subject, "html": html})
+    except Exception as e:
+        logger.error(f"Sold-out email failed: {e}")
+    asyncio.create_task(send_whatsapp_text(f"⚠️ {subject}\n\n{body}"))
+
+async def decrement_stock_and_alert(order_items: list):
+    for it in order_items:
+        pid = it.get("product_id")
+        qty = it.get("quantity", 1)
+        if not pid: continue
+        # decrement atomically
+        result = await db.products.find_one_and_update(
+            {"id": pid, "stock": {"$gte": qty}},
+            {"$inc": {"stock": -qty}},
+            return_document=True,
+        )
+        if result and result.get("stock", 0) == 0:
+            asyncio.create_task(send_sold_out_alert(result))
+
 async def send_order_confirmation(order: dict):
     try:
         items_html = "".join(
@@ -602,8 +670,10 @@ async def payment_status(session_id: str):
                 order["payment_status"] = "paid"
                 order["status"] = "confirmed"
                 asyncio.create_task(send_order_confirmation(order))
+                asyncio.create_task(decrement_stock_and_alert(order["items"]))
                 if order.get("user_id"):
                     await add_loyalty_punch(order["user_id"])
+                    await process_referral(order["user_id"])
                 items_txt = ", ".join(f"{it['name']} x {it['quantity']}" for it in order["items"])
                 asyncio.create_task(send_whatsapp_text(
                     f"🎉 New paid order — Rustic Bakes\n\n"
@@ -632,6 +702,9 @@ async def stripe_webhook(request: Request):
                 await db.orders.update_one({"session_id": result.session_id},
                     {"$set": {"payment_status": "paid", "status": "confirmed", "updated_at": now_iso()}})
                 asyncio.create_task(send_order_confirmation(order))
+                asyncio.create_task(decrement_stock_and_alert(order["items"]))
+                if order.get("user_id"):
+                    await process_referral(order["user_id"])
                 items_txt = ", ".join(f"{it['name']} x {it['quantity']}" for it in order["items"])
                 asyncio.create_task(send_whatsapp_text(
                     f"🎉 New paid order — Rustic Bakes\n\n"

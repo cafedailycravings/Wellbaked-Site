@@ -21,6 +21,8 @@ export function Nav() {
   const links = [
     { to: "/", label: "Home" },
     { to: "/shop", label: "Shop" },
+    { to: "/gifting", label: "Gifting" },
+    { to: "/customize", label: "Customize" },
     { to: "/about", label: "Our Story" },
     { to: "/contact", label: "Contact" },
   ];
@@ -111,6 +113,8 @@ export function Footer() {
           <h4 className="text-xs tracking-[0.25em] text-blush mb-4">Company</h4>
           <ul className="space-y-2 text-sm text-cream/80">
             <li><Link to="/about">Our Story</Link></li>
+            <li><Link to="/gifting">Gifting</Link></li>
+            <li><Link to="/customize">Cake Builder</Link></li>
             <li><Link to="/contact">Contact</Link></li>
             <li><Link to="/login">Customer login</Link></li>
             <li><Link to="/admin/login">Admin</Link></li>
