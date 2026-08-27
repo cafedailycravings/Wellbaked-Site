@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, addToCart, LOGO, fmt } from "../lib";
 import { toast } from "sonner";
-import { ArrowRight, Wheat, Heart, Clock, Award } from "lucide-react";
+import { ArrowRight, Wheat, Heart, Clock, Award, Instagram } from "lucide-react";
 import { iconFor } from "../categoryIcons";
 import { SameDayBadge } from "../SameDayBadge";
 
@@ -11,11 +11,13 @@ export default function Home() {
   const [about, setAbout] = useState({});
   const [featured, setFeatured] = useState([]);
   const [cats, setCats] = useState([]);
+  const [instagram, setInstagram] = useState({ handle: "dailycravings", posts: [] });
   useEffect(() => {
     api.get("/content/hero").then(r => setHero(r.data.value || {}));
     api.get("/content/about").then(r => setAbout(r.data.value || {}));
     api.get("/products?featured=true").then(r => setFeatured(r.data));
     api.get("/categories").then(r => setCats(r.data));
+    api.get("/content/instagram").then(r => { if (r.data.value?.posts) setInstagram(r.data.value); });
   }, []);
 
   return (
@@ -75,10 +77,10 @@ export default function Home() {
           <Link to="/shop" className="text-brown hover:text-brown-dark text-sm font-medium hidden md:flex items-center gap-1" data-testid="cats-see-all">See all <ArrowRight size={16}/></Link>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger">
-          {cats.map(c => {
+          {cats.slice(0,8).map(c => {
             const { Icon, tint } = iconFor(c.slug);
             return (
-              <Link key={c.id} to={`/shop?cat=${c.slug}`} data-testid={`category-${c.slug}`} className="group relative overflow-hidden rounded-2xl h-64 block shadow-soft">
+              <Link key={c.id} to={`/category/${c.slug}`} data-testid={`category-${c.slug}`} className="group relative overflow-hidden rounded-2xl h-64 block shadow-soft">
                 <img src={c.image} alt={c.name} className="w-full h-full object-cover" style={{transition:"transform .6s ease-out"}} onMouseEnter={e=>e.currentTarget.style.transform='scale(1.05)'} onMouseLeave={e=>e.currentTarget.style.transform=''}/>
                 <div className="absolute inset-0 bg-gradient-to-t from-brown/85 via-brown/20 to-transparent"/>
                 <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-cream/90 backdrop-blur flex items-center justify-center shadow-medium">
@@ -139,6 +141,35 @@ export default function Home() {
           <Link to="/about" className="btn-primary mt-8">Read our story <ArrowRight size={18}/></Link>
         </div>
       </section>
+
+      {/* Instagram feed */}
+      {instagram.posts && instagram.posts.length > 0 && (
+        <section className="bg-cream2 py-24">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
+              <div>
+                <div className="wheat-line mb-3 max-w-xs"><span>On the gram</span></div>
+                <h2 className="font-serif text-4xl text-brown flex items-center gap-3"><Instagram size={30} className="text-blush-dark"/> @{instagram.handle}</h2>
+              </div>
+              <a href={`https://instagram.com/${instagram.handle}`} target="_blank" rel="noreferrer" className="btn-ghost text-sm">Follow us <ArrowRight size={14}/></a>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {instagram.posts.slice(0, 6).map((p, i) => (
+                <a key={i} href={p.link || `https://instagram.com/${instagram.handle}`} target="_blank" rel="noreferrer"
+                   className="group relative aspect-square block rounded-xl overflow-hidden shadow-soft" data-testid={`ig-post-${i}`}>
+                  <img src={p.image} alt={p.caption || ""} className="w-full h-full object-cover"
+                       style={{transition:"transform .4s ease-out"}}
+                       onMouseEnter={e=>e.currentTarget.style.transform='scale(1.06)'}
+                       onMouseLeave={e=>e.currentTarget.style.transform=''}/>
+                  <div className="absolute inset-0 bg-brown/0 group-hover:bg-brown/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Instagram size={26} className="text-cream"/>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -2,16 +2,19 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, getUser, setUser, fmt } from "../lib";
 import { toast } from "sonner";
+import { Award, Cookie } from "lucide-react";
 
 export default function Account() {
   const nav = useNavigate();
   const [u, setU] = useState(getUser());
   const [form, setForm] = useState({ name: "", phone: "", address: "", password: "" });
   const [orders, setOrders] = useState([]);
+  const [loyalty, setLoyalty] = useState({ punches: 0, available_rewards: 0, goal: 10 });
   useEffect(() => {
     if (!u) { nav("/login?redirect=/account"); return; }
     api.get("/auth/me").then(r => { setU(r.data); setForm({name:r.data.name||"", phone:r.data.phone||"", address:r.data.address||"", password:""}); });
     api.get("/auth/orders").then(r => setOrders(r.data)).catch(()=>{});
+    api.get("/loyalty").then(r => setLoyalty(r.data)).catch(()=>{});
   }, [nav]); // eslint-disable-line
 
   const save = async () => {
@@ -26,10 +29,36 @@ export default function Account() {
   if (!u) return null;
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-12">
+    <div className="max-w-6xl mx-auto px-6 py-12">
       <div className="wheat-line mb-4 max-w-xs"><span>My account</span></div>
       <h1 className="font-serif text-4xl text-brown">Hello, {u.name || "friend"}</h1>
-      <div className="grid lg:grid-cols-2 gap-8 mt-10">
+
+      {/* Loyalty card */}
+      <div className="mt-8 card p-8 relative overflow-hidden" data-testid="loyalty-card"
+           style={{ background: "linear-gradient(135deg, #4A3022 0%, #362217 100%)" }}>
+        <div className="grain absolute inset-0 opacity-20"/>
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 text-blush text-xs uppercase tracking-[0.25em]"><Award size={14}/> Rustic Rewards</div>
+            <h2 className="font-serif text-3xl text-cream mt-2">Your baker's punch-card</h2>
+            <p className="text-cream/70 text-sm mt-2 max-w-md">Buy {loyalty.goal} bakes and get one absolutely on the house. You're {loyalty.goal - loyalty.punches} bake{loyalty.goal - loyalty.punches !== 1 ? "s" : ""} away.</p>
+            {loyalty.available_rewards > 0 && (
+              <div className="mt-4 inline-flex items-center gap-2 bg-gold text-brown-dark px-4 py-2 rounded-full text-sm font-semibold" data-testid="loyalty-reward">
+                <Award size={16}/> {loyalty.available_rewards} free bake{loyalty.available_rewards !== 1 ? "s" : ""} unlocked — mention this at checkout
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-5 gap-3">
+            {Array.from({ length: loyalty.goal }).map((_, i) => (
+              <div key={i} className={"w-10 h-10 rounded-full flex items-center justify-center border-2 " + (i < loyalty.punches ? "bg-blush border-blush text-brown-dark" : "border-cream/30 text-cream/30")}>
+                <Cookie size={16}/>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-8 mt-8">
         <div className="card p-8">
           <h3 className="font-serif text-2xl text-brown mb-4">Your details</h3>
           <p className="text-sm text-brown-light mb-4">These will auto-fill at checkout.</p>

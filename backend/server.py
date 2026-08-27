@@ -146,6 +146,14 @@ class CategoryIn(BaseModel):
     slug: str
     description: str = ""
     image: str = ""
+    story: str = ""
+
+class ReviewIn(BaseModel):
+    product_slug: str
+    rating: int = Field(5, ge=1, le=5)
+    title: str = ""
+    body: str
+    image_url: str = ""
 
 class InquiryIn(BaseModel):
     name: str
@@ -270,6 +278,13 @@ async def delete_product(pid: str, user=Depends(get_current_admin)):
 async def list_categories():
     return await db.categories.find({}, {"_id": 0}).sort("name", 1).to_list(200)
 
+@api.get("/categories/{slug}")
+async def get_category(slug: str):
+    c = await db.categories.find_one({"slug": slug}, {"_id": 0})
+    if not c: raise HTTPException(404, "Not found")
+    products = await db.products.find({"category": slug, "is_active": True}, {"_id": 0}).to_list(200)
+    return {"category": c, "products": products}
+
 @api.post("/admin/categories")
 async def create_category(c: CategoryIn, user=Depends(get_current_admin)):
     doc = c.model_dump()
@@ -289,6 +304,57 @@ async def update_category(cid: str, c: CategoryIn, user=Depends(get_current_admi
 async def delete_category(cid: str, user=Depends(get_current_admin)):
     await db.categories.delete_one({"id": cid})
     return {"success": True}
+
+# --- Reviews ---
+@api.get("/products/{slug}/reviews")
+async def list_reviews(slug: str):
+    reviews = await db.reviews.find({"product_slug": slug, "status": "approved"}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return reviews
+
+@api.post("/products/{slug}/reviews")
+async def create_review(slug: str, r: ReviewIn, user=Depends(get_current_user)):
+    prod = await db.products.find_one({"slug": slug})
+    if not prod: raise HTTPException(404, "Product not found")
+    doc = {"id": str(uuid.uuid4()), "product_slug": slug, "product_name": prod["name"],
+           "user_id": user["id"], "user_name": user.get("name", "Customer"),
+           "rating": r.rating, "title": r.title, "body": r.body, "image_url": r.image_url,
+           "status": "approved", "created_at": now_iso()}
+    await db.reviews.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api.get("/admin/reviews")
+async def admin_list_reviews(user=Depends(get_current_admin)):
+    return await db.reviews.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+@api.put("/admin/reviews/{rid}")
+async def moderate_review(rid: str, data: dict, user=Depends(get_current_admin)):
+    await db.reviews.update_one({"id": rid}, {"$set": {"status": data.get("status", "approved")}})
+    return {"success": True}
+
+@api.delete("/admin/reviews/{rid}")
+async def delete_review(rid: str, user=Depends(get_current_admin)):
+    await db.reviews.delete_one({"id": rid})
+    return {"success": True}
+
+# --- Loyalty ---
+LOYALTY_PUNCHES_REQUIRED = 10
+
+async def add_loyalty_punch(user_id: str):
+    user = await db.users.find_one({"id": user_id})
+    if not user: return
+    punches = user.get("punches", 0) + 1
+    rewards = user.get("available_rewards", 0)
+    if punches >= LOYALTY_PUNCHES_REQUIRED:
+        rewards += 1
+        punches = 0
+    await db.users.update_one({"id": user_id}, {"$set": {"punches": punches, "available_rewards": rewards}})
+
+@api.get("/loyalty")
+async def get_loyalty(user=Depends(get_current_user)):
+    u = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return {"punches": u.get("punches", 0), "available_rewards": u.get("available_rewards", 0),
+            "goal": LOYALTY_PUNCHES_REQUIRED}
 
 # --- Inquiries ---
 @api.post("/inquiries")
@@ -439,6 +505,8 @@ async def payment_status(session_id: str):
                 order["payment_status"] = "paid"
                 order["status"] = "confirmed"
                 asyncio.create_task(send_order_confirmation(order))
+                if order.get("user_id"):
+                    await add_loyalty_punch(order["user_id"])
                 items_txt = ", ".join(f"{it['name']} x {it['quantity']}" for it in order["items"])
                 asyncio.create_task(send_whatsapp_text(
                     f"🎉 New paid order — Rustic Bakes\n\n"

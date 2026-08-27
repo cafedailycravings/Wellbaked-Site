@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib";
 import { toast } from "sonner";
-import { LogOut, Package, Layers, ShoppingBag, Inbox, FileText, User, CreditCard, BarChart3, Plus, Trash2, Edit2, X, Image as ImageIcon, Download } from "lucide-react";
+import { LogOut, Package, Layers, ShoppingBag, Inbox, FileText, User, CreditCard, BarChart3, Plus, Trash2, Edit2, X, Image as ImageIcon, Download, Star, Instagram } from "lucide-react";
 
 const CUR = "₹";
 
@@ -13,8 +13,10 @@ const TABS = [
   { id: "categories", label: "Categories", icon: Layers },
   { id: "images", label: "Images", icon: ImageIcon },
   { id: "orders", label: "Orders", icon: ShoppingBag },
+  { id: "reviews", label: "Reviews", icon: Star },
   { id: "inquiries", label: "Inquiries", icon: Inbox },
   { id: "content", label: "Site Content", icon: FileText },
+  { id: "instagram", label: "Instagram", icon: Instagram },
   { id: "payment", label: "Payment Gateway", icon: CreditCard },
   { id: "profile", label: "Profile", icon: User },
 ];
@@ -60,8 +62,10 @@ export default function Admin() {
           {tab === "categories" && <CategoriesTab/>}
           {tab === "images" && <ImagesTab/>}
           {tab === "orders" && <OrdersTab/>}
+          {tab === "reviews" && <ReviewsTab/>}
           {tab === "inquiries" && <InquiriesTab/>}
           {tab === "content" && <ContentTab/>}
+          {tab === "instagram" && <InstagramTab/>}
           {tab === "payment" && <PaymentTab/>}
           {tab === "profile" && <ProfileTab user={user} setUser={setUser}/>}
         </main>
@@ -490,8 +494,7 @@ function OrdersTab() {
 function InquiriesTab() {
   const [items, setItems] = useState([]);
   const load = () => api.get("/admin/inquiries").then(r=>setItems(r.data));
-  useEffect(load, []);
-  return (
+  useEffect(load, []);  return (
     <div>
       <h1 className="font-serif text-3xl text-brown mb-6">Inquiries</h1>
       <div className="grid gap-3">{items.map(i=>(
@@ -595,8 +598,79 @@ function ProfileTab({ user, setUser }) {
   );
 }
 
-function Modal({ children, onClose, title }) {
+function ReviewsTab() {
+  const [items, setItems] = useState([]);
+  const load = () => api.get("/admin/reviews").then(r => setItems(r.data));
+  useEffect(load, []);
+  const moderate = async (id, status) => { await api.put(`/admin/reviews/${id}`, { status }); toast.success("Updated"); load(); };
+  const del = async (id) => { if (!window.confirm("Delete this review?")) return; await api.delete(`/admin/reviews/${id}`); load(); };
   return (
+    <div>
+      <h1 className="font-serif text-3xl text-brown mb-6">Reviews</h1>
+      <div className="grid gap-3">
+        {items.map(r => (
+          <div key={r.id} className="card p-5" data-testid={`admin-review-${r.id}`}>
+            <div className="flex flex-wrap justify-between gap-3">
+              <div>
+                <div className="inline-flex gap-0.5 mb-1">{[1,2,3,4,5].map(n => <Star key={n} size={14} className={n<=r.rating?"fill-gold text-gold":"text-brown-muted"}/>)}</div>
+                <div className="font-serif text-lg text-brown">{r.title || r.product_name}</div>
+                <div className="text-xs text-brown-muted">{r.user_name} · {r.product_name} · {new Date(r.created_at).toLocaleString()}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <select value={r.status} onChange={e=>moderate(r.id, e.target.value)} className="field py-1 text-sm w-auto">
+                  <option value="approved">Approved</option><option value="pending">Pending</option><option value="hidden">Hidden</option>
+                </select>
+                <button onClick={()=>del(r.id)} className="text-blush-dark p-2"><Trash2 size={16}/></button>
+              </div>
+            </div>
+            <p className="text-brown-light mt-3 text-sm">{r.body}</p>
+            {r.image_url && <img src={r.image_url} alt="" className="w-32 h-32 object-cover rounded-lg mt-3"/>}
+          </div>
+        ))}
+        {items.length === 0 && <div className="text-brown-muted text-center py-10">No reviews yet.</div>}
+      </div>
+    </div>
+  );
+}
+
+function InstagramTab() {
+  const [data, setData] = useState({ handle: "dailycravings", posts: [] });
+  useEffect(() => { api.get("/content/instagram").then(r => r.data.value && setData(r.data.value)); }, []);
+  const updatePost = (i, field, v) => {
+    const posts = [...(data.posts || [])];
+    while (posts.length <= i) posts.push({ image: "", caption: "", link: "" });
+    posts[i] = { ...posts[i], [field]: v };
+    setData({ ...data, posts });
+  };
+  const save = async () => { await api.put("/admin/content", { key: "instagram", value: data }); toast.success("Instagram feed saved"); };
+  return (
+    <div>
+      <h1 className="font-serif text-3xl text-brown mb-2">Instagram Feed</h1>
+      <p className="text-brown-light text-sm mb-6">Paste up to 6 recent post images to display on the homepage. Add the post link so tapping opens Instagram.</p>
+      <div className="card p-5 mb-6">
+        <label className="text-xs text-brown-muted uppercase tracking-widest">Instagram handle (without @)</label>
+        <input className="field mt-1" value={data.handle} onChange={e=>setData({...data, handle:e.target.value})} data-testid="ig-handle"/>
+      </div>
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({length: 6}).map((_, i) => {
+          const p = data.posts?.[i] || {};
+          return (
+            <div key={i} className="card p-4" data-testid={`ig-post-editor-${i}`}>
+              <div className="text-xs uppercase tracking-widest text-brown-muted mb-2">Post {i+1}</div>
+              {p.image && <img src={p.image} alt="" className="w-full aspect-square object-cover rounded-lg mb-2"/>}
+              <input className="field mb-2 text-xs" placeholder="Image URL" value={p.image||""} onChange={e=>updatePost(i,"image",e.target.value)}/>
+              <input className="field mb-2 text-xs" placeholder="Instagram post link (optional)" value={p.link||""} onChange={e=>updatePost(i,"link",e.target.value)}/>
+              <input className="field text-xs" placeholder="Caption (optional)" value={p.caption||""} onChange={e=>updatePost(i,"caption",e.target.value)}/>
+            </div>
+          );
+        })}
+      </div>
+      <button className="btn-primary mt-6" onClick={save} data-testid="ig-save">Save feed</button>
+    </div>
+  );
+}
+
+function Modal({ children, onClose, title }) {  return (
     <div className="fixed inset-0 bg-brown/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-cream rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4"><h3 className="font-serif text-xl text-brown">{title}</h3><button onClick={onClose}><X size={20}/></button></div>
