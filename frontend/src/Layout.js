@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ShoppingBag, Menu, X, Mail, MapPin, Clock, Phone, User, LogIn } from "lucide-react";
-import { LOGO, getCart, api, getUser, logout as doLogout } from "./lib";
+import { ShoppingBag, Menu, X, Mail, MapPin, Clock, Phone, User, LogIn, Instagram, MessageCircle } from "lucide-react";
+import { LOGO, getCart, getUser, logout as doLogout, CONTACT, WA_LINK, IG_LINK, WA_QR, IG_QR } from "./lib";
 
 export function Nav() {
   const [open, setOpen] = useState(false);
@@ -37,7 +37,7 @@ export function Nav() {
     <header className="sticky top-0 z-40 backdrop-blur-xl bg-cream/80 border-b border-brown/10">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3" data-testid="nav-home-link">
-          <img src={LOGO} alt="Rustic Bakes" className="w-12 h-12 rounded-full object-cover ring-1 ring-brown/10" />
+          <img src={LOGO} alt="Rustic Bakes" className="w-14 h-14 rounded-full object-cover ring-1 ring-brown/10 bg-cream" />
           <div className="hidden sm:block leading-tight">
             <div className="font-serif text-lg text-brown">Rustic Bakes</div>
             <div className="font-script text-blush-dark text-sm -mt-1">by Daily Cravings</div>
@@ -85,57 +85,86 @@ export function Nav() {
         </div>
       )}
     </header>
+
+    {/* Floating WhatsApp button */}
+    <a href={WA_LINK} target="_blank" rel="noreferrer" data-testid="floating-whatsapp"
+       className="fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-[#25D366] text-white shadow-large flex items-center justify-center hover:scale-105 transition-transform"
+       style={{ animation: "wa-pulse 2.4s ease-in-out infinite" }}>
+      <MessageCircle size={26} className="fill-white"/>
+      <style>{`@keyframes wa-pulse {
+        0%,100% { box-shadow: 0 8px 24px rgba(37,211,102,.35); }
+        50%     { box-shadow: 0 10px 32px rgba(37,211,102,.65); }
+      }`}</style>
+    </a>
     </>
   );
 }
 
 export function Footer() {
-  const [contact, setContact] = useState({});
-  useEffect(() => { api.get("/content/contact").then(r => setContact(r.data.value || {})).catch(()=>{}); }, []);
   return (
     <footer className="mt-24 bg-brown text-cream">
       <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-10">
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <img src={LOGO} alt="Rustic Bakes" className="w-12 h-12 rounded-full ring-1 ring-cream/30 bg-cream" />
+            <img src={LOGO} alt="Rustic Bakes" className="w-14 h-14 rounded-full ring-1 ring-cream/30 bg-cream" />
             <div>
               <div className="font-serif text-xl">Rustic Bakes</div>
               <div className="font-script text-blush text-sm">by Daily Cravings</div>
             </div>
           </div>
           <p className="text-cream/70 text-sm leading-relaxed">Small-batch artisan bakery. 100% eggless. Premium ingredients. Baked with love, every single morning.</p>
+          <div className="flex gap-3 mt-4">
+            <a href={WA_LINK} target="_blank" rel="noreferrer" aria-label="WhatsApp" data-testid="footer-whatsapp"
+               className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center hover:opacity-90"><MessageCircle size={16} className="fill-white text-white"/></a>
+            <a href={IG_LINK} target="_blank" rel="noreferrer" aria-label="Instagram" data-testid="footer-instagram"
+               className="w-10 h-10 rounded-full flex items-center justify-center hover:opacity-90"
+               style={{ background: "linear-gradient(135deg, #833AB4 0%, #E1306C 50%, #FCAF45 100%)" }}><Instagram size={16} className="text-white"/></a>
+          </div>
         </div>
+
         <div>
           <h4 className="text-xs tracking-[0.25em] text-blush mb-4">Shop</h4>
           <ul className="space-y-2 text-sm text-cream/80">
-            <li><Link to="/shop?cat=breads">Artisan Breads</Link></li>
-            <li><Link to="/shop?cat=cakes">Signature Cakes</Link></li>
-            <li><Link to="/shop?cat=pastries">Fresh Pastries</Link></li>
-            <li><Link to="/shop?cat=cookies">Cookies &amp; Bites</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-xs tracking-[0.25em] text-blush mb-4">Company</h4>
-          <ul className="space-y-2 text-sm text-cream/80">
-            <li><Link to="/about">Our Story</Link></li>
-            <li><Link to="/gifting">Gifting</Link></li>
+            <li><Link to="/shop">All bakes</Link></li>
             <li><Link to="/customize">Cake Builder</Link></li>
+            <li><Link to="/gifting">Gifting</Link></li>
+            <li><Link to="/about">Our Story</Link></li>
             <li><Link to="/contact">Contact</Link></li>
-            <li><Link to="/login">Customer login</Link></li>
             <li><Link to="/admin/login">Admin</Link></li>
           </ul>
         </div>
+
         <div>
-          <h4 className="text-xs tracking-[0.25em] text-blush mb-4">Visit</h4>
+          <h4 className="text-xs tracking-[0.25em] text-blush mb-4">Visit us</h4>
           <ul className="space-y-3 text-sm text-cream/80">
-            <li className="flex items-start gap-2"><Mail size={14} className="mt-1"/><a href={`mailto:${contact.email || 'orders@cafedailycravings.com'}`} data-testid="footer-email">{contact.email || 'orders@cafedailycravings.com'}</a></li>
-            {contact.phone && <li className="flex items-start gap-2"><Phone size={14} className="mt-1"/>{contact.phone}</li>}
-            {contact.address && <li className="flex items-start gap-2"><MapPin size={14} className="mt-1"/>{contact.address}</li>}
-            {contact.hours && <li className="flex items-start gap-2"><Clock size={14} className="mt-1"/>{contact.hours}</li>}
+            <li className="flex items-start gap-2"><MapPin size={14} className="mt-1 shrink-0"/>
+              <span data-testid="footer-address">{CONTACT.address.line1}, {CONTACT.address.line2}, {CONTACT.address.city}</span>
+            </li>
+            <li className="flex items-start gap-2"><Clock size={14} className="mt-1 shrink-0"/>{CONTACT.hours}</li>
+            <li className="flex items-start gap-2"><Mail size={14} className="mt-1 shrink-0"/><a href={`mailto:${CONTACT.email}`} data-testid="footer-email">{CONTACT.email}</a></li>
+            {CONTACT.phones.map((p, i) => (
+              <li key={i} className="flex items-start gap-2"><Phone size={14} className="mt-1 shrink-0"/><a href={`tel:${p.replace(/\s/g,'')}`} data-testid={`footer-phone-${i}`}>{p}</a></li>
+            ))}
           </ul>
         </div>
+
+        <div>
+          <h4 className="text-xs tracking-[0.25em] text-blush mb-4">Scan · Follow</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <a href={WA_LINK} target="_blank" rel="noreferrer" className="block" data-testid="footer-whatsapp-qr-link">
+              <img src={WA_QR} alt="WhatsApp QR" className="w-full rounded-lg bg-cream p-1"/>
+              <div className="text-[10px] text-cream/70 mt-1 text-center">WhatsApp</div>
+            </a>
+            <a href={IG_LINK} target="_blank" rel="noreferrer" className="block" data-testid="footer-instagram-qr-link">
+              <img src={IG_QR} alt="Instagram QR" className="w-full rounded-lg bg-cream p-1"/>
+              <div className="text-[10px] text-cream/70 mt-1 text-center">@{CONTACT.instagramHandle}</div>
+            </a>
+          </div>
+        </div>
       </div>
-      <div className="border-t border-cream/10 py-6 text-center text-xs text-cream/50">© {new Date().getFullYear()} Rustic Bakes by Daily Cravings · Baked with love</div>
+      <div className="border-t border-cream/10 py-6 text-center text-xs text-cream/50">
+        © {new Date().getFullYear()} Rustic Bakes by Daily Cravings · 100% Eggless · Baked with love
+      </div>
     </footer>
   );
 }
