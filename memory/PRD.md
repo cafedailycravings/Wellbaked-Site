@@ -27,10 +27,15 @@ Build "Rustic Bakes" — a full-stack website for the artisan bakery "Rustic Bak
 - Full storefront: Home (hero, categories, featured, about teaser), Shop (with category filter), Product detail (with qty picker), About, Contact, Cart, Checkout, Payment success
 - Customer auth: /login (register + sign in), /account (edit profile, view orders)
 - Admin auth: /admin/login → /admin dashboard
-- Admin tabs: Overview, Products (CRUD), Inventory (stock updates), Categories (CRUD), Images (media library), Orders (view + status), Inquiries (view + status), Site Content (hero/about/contact), Payment Gateway (settings), Profile (name/password)
+- Admin tabs: Overview, Products (CRUD), Inventory (stock updates), Categories (CRUD), Images (Cloudinary file upload + URL library), Orders (view + status), Inquiries (view + status), Site Content (hero/about/contact), Payment Gateway (settings), Profile (name/password)
 - Stripe checkout with INR currency, order tracking via session polling, auto-save customer details on checkout when logged in
 - 6 seeded products with INR prices, 4 categories, default site content
 - Backend testing: 40/40 pytest cases pass
+
+## Implemented (2026-01-27, later)
+- **Cloudinary integration**: signed upload flow for admin file uploads (env: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET). Graceful "not configured" banner in Images tab. Auto-delete from Cloudinary when media record is removed.
+- **Meta WhatsApp Business Cloud API**: `send_whatsapp_text` helper called on new inquiry and new paid order. Owner number `+918284990433` seeded. Env vars: META_WHATSAPP_TOKEN, META_WHATSAPP_PHONE_NUMBER_ID, META_GRAPH_VERSION, OWNER_WHATSAPP_NUMBER. Silently skips (logs) when not configured — doesn't fail order/inquiry.
+- **DEPLOYMENT.md**: full GoDaddy + Cloudflare + Render + MongoDB Atlas + Cloudinary + Resend + Meta WhatsApp deployment guide at `/app/DEPLOYMENT.md`.
 
 ## Prioritized Backlog
 ### P1 (near-term)

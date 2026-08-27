@@ -213,25 +213,76 @@ function CategoriesTab() {
 function ImagesTab() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ url: "", name: "", tag: "" });
+  const [uploading, setUploading] = useState(false);
+  const [cloudinaryReady, setCloudinaryReady] = useState(false);
   const load = () => api.get("/admin/media").then(r => setItems(r.data));
-  useEffect(load, []);
-  const add = async () => {
-    if (!form.url) return toast.error("URL required");
-    try { await api.post("/admin/media", form); setForm({url:"",name:"",tag:""}); load(); toast.success("Image added"); }
+  useEffect(() => {
+    load();
+    api.get("/admin/cloudinary/status").then(r => setCloudinaryReady(r.data.configured)).catch(()=>{});
+  }, []);
+  const add = async (payload) => {
+    try { await api.post("/admin/media", payload); load(); toast.success("Image saved"); }
     catch { toast.error("Failed"); }
+  };
+  const addUrl = async () => {
+    if (!form.url) return toast.error("URL required");
+    await add(form);
+    setForm({url:"",name:"",tag:""});
+  };
+  const uploadFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!cloudinaryReady) { toast.error("Cloudinary not configured. Ask admin to add API keys in .env"); return; }
+    setUploading(true);
+    try {
+      const { data: sig } = await api.get("/admin/cloudinary/signature");
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("api_key", sig.api_key);
+      fd.append("timestamp", sig.timestamp);
+      fd.append("signature", sig.signature);
+      fd.append("folder", sig.folder);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`, { method: "POST", body: fd });
+      const uploaded = await res.json();
+      if (uploaded.error) throw new Error(uploaded.error.message);
+      await add({ url: uploaded.secure_url, public_id: uploaded.public_id,
+                  name: file.name.replace(/\.[^.]+$/,''), tag: "upload" });
+    } catch(err) { toast.error(err.message || "Upload failed"); }
+    finally { setUploading(false); e.target.value = ""; }
   };
   const del = async (id) => { await api.delete(`/admin/media/${id}`); load(); };
   const copy = (url) => { navigator.clipboard.writeText(url); toast.success("URL copied"); };
   return (
     <div>
-      <h1 className="font-serif text-3xl text-brown mb-6">Image Library</h1>
-      <p className="text-sm text-brown-light mb-4">Store reusable image URLs. Copy and paste into product/category/content fields.</p>
-      <div className="card p-4 mb-6 grid md:grid-cols-4 gap-3">
-        <input className="field md:col-span-2" placeholder="Image URL (https://...)" value={form.url} onChange={e=>setForm({...form,url:e.target.value})} data-testid="media-url"/>
-        <input className="field" placeholder="Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} data-testid="media-name"/>
-        <input className="field" placeholder="Tag (breads, hero...)" value={form.tag} onChange={e=>setForm({...form,tag:e.target.value})} data-testid="media-tag"/>
-        <button className="btn-primary md:col-span-4 justify-center" onClick={add} data-testid="media-add"><Plus size={16}/> Add image</button>
+      <h1 className="font-serif text-3xl text-brown mb-2">Image Library</h1>
+      <p className="text-sm text-brown-light mb-4">Upload from device or paste image URLs. Copy any URL into product/category/content fields.</p>
+
+      {!cloudinaryReady && (
+        <div className="card p-4 mb-4 border-l-4 border-blush-dark text-sm text-brown">
+          <strong>Cloudinary not configured.</strong> Add <code>CLOUDINARY_CLOUD_NAME</code>, <code>CLOUDINARY_API_KEY</code>, <code>CLOUDINARY_API_SECRET</code> to <code>/app/backend/.env</code> to enable file uploads. You can still add images by URL below.
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="card p-5">
+          <h3 className="font-serif text-lg text-brown mb-3">Upload from device</h3>
+          <label className={"btn-primary cursor-pointer inline-flex " + (uploading || !cloudinaryReady ? "opacity-50 pointer-events-none" : "")}>
+            <input type="file" accept="image/*" className="hidden" onChange={uploadFile} data-testid="media-file-input"/>
+            {uploading ? "Uploading..." : "Choose photo"}
+          </label>
+          <div className="text-xs text-brown-muted mt-2">JPG, PNG, WEBP · auto-optimized via Cloudinary</div>
+        </div>
+        <div className="card p-5">
+          <h3 className="font-serif text-lg text-brown mb-3">Add by URL</h3>
+          <input className="field mb-2" placeholder="https://..." value={form.url} onChange={e=>setForm({...form,url:e.target.value})} data-testid="media-url"/>
+          <div className="grid grid-cols-2 gap-2">
+            <input className="field" placeholder="Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} data-testid="media-name"/>
+            <input className="field" placeholder="Tag" value={form.tag} onChange={e=>setForm({...form,tag:e.target.value})} data-testid="media-tag"/>
+          </div>
+          <button className="btn-primary mt-3" onClick={addUrl} data-testid="media-add"><Plus size={16}/> Add URL</button>
+        </div>
       </div>
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {items.map(m => (
           <div key={m.id} className="card overflow-hidden group" data-testid={`media-${m.id}`}>
@@ -246,7 +297,7 @@ function ImagesTab() {
             </div>
           </div>
         ))}
-        {items.length === 0 && <div className="col-span-full text-center text-brown-muted py-10">No images yet. Add your first one above.</div>}
+        {items.length === 0 && <div className="col-span-full text-center text-brown-muted py-10">No images yet. Upload or add your first one above.</div>}
       </div>
     </div>
   );

@@ -2,13 +2,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import time
 import asyncio
 import logging
 import uuid
 import bcrypt
 import jwt
+import httpx
 import resend
 import stripe
+import cloudinary
+import cloudinary.utils
+import cloudinary.uploader
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, status
@@ -30,9 +35,19 @@ RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
 OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "orders@cafedailycravings.com")
 STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
+META_WHATSAPP_TOKEN = os.environ.get("META_WHATSAPP_TOKEN", "")
+META_WHATSAPP_PHONE_NUMBER_ID = os.environ.get("META_WHATSAPP_PHONE_NUMBER_ID", "")
+META_GRAPH_VERSION = os.environ.get("META_GRAPH_VERSION", "v18.0")
+OWNER_WHATSAPP_NUMBER = os.environ.get("OWNER_WHATSAPP_NUMBER", "")
 
 resend.api_key = RESEND_API_KEY
 stripe.api_key = STRIPE_API_KEY
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    cloudinary.config(cloud_name=CLOUDINARY_CLOUD_NAME, api_key=CLOUDINARY_API_KEY,
+                      api_secret=CLOUDINARY_API_SECRET, secure=True)
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -283,8 +298,13 @@ async def create_inquiry(i: InquiryIn):
     doc["created_at"] = now_iso()
     doc["status"] = "new"
     await db.inquiries.insert_one(doc)
-    # send email (non-blocking)
+    # send email + whatsapp (non-blocking)
     asyncio.create_task(send_inquiry_email(doc))
+    asyncio.create_task(send_whatsapp_text(
+        f"🍞 New inquiry — Rustic Bakes\n\n"
+        f"Name: {doc['name']}\nEmail: {doc['email']}\nPhone: {doc.get('phone','—')}\n"
+        f"Subject: {doc.get('subject','—')}\n\nMessage:\n{doc['message']}"
+    ))
     return {"success": True, "id": doc["id"]}
 
 @api.get("/admin/inquiries")
@@ -419,6 +439,15 @@ async def payment_status(session_id: str):
                 order["payment_status"] = "paid"
                 order["status"] = "confirmed"
                 asyncio.create_task(send_order_confirmation(order))
+                items_txt = ", ".join(f"{it['name']} x {it['quantity']}" for it in order["items"])
+                asyncio.create_task(send_whatsapp_text(
+                    f"🎉 New paid order — Rustic Bakes\n\n"
+                    f"Order #{order['id'][:8]}\n"
+                    f"Customer: {order['customer_name']}\n"
+                    f"Total: ₹{order['total']:.2f}\n"
+                    f"Phone: {order.get('customer_phone','—')}\n"
+                    f"Items: {items_txt}"
+                ))
         except Exception as e:
             logger.error(f"Status check failed: {e}")
     return {"session_id": session_id, "payment_status": order.get("payment_status"),
@@ -438,6 +467,12 @@ async def stripe_webhook(request: Request):
                 await db.orders.update_one({"session_id": result.session_id},
                     {"$set": {"payment_status": "paid", "status": "confirmed", "updated_at": now_iso()}})
                 asyncio.create_task(send_order_confirmation(order))
+                items_txt = ", ".join(f"{it['name']} x {it['quantity']}" for it in order["items"])
+                asyncio.create_task(send_whatsapp_text(
+                    f"🎉 New paid order — Rustic Bakes\n\n"
+                    f"Order #{order['id'][:8]}\nCustomer: {order['customer_name']}\n"
+                    f"Total: ₹{order['total']:.2f}\nItems: {items_txt}"
+                ))
         return {"status": "ok"}
     except Exception as e:
         logger.error(f"Webhook err: {e}")
@@ -465,6 +500,46 @@ async def set_pay_settings(data: dict, user=Depends(get_current_admin)):
         {"$set": {"key": "payment", "value": data, "updated_at": now_iso()}}, upsert=True)
     return {"success": True}
 
+# --- WhatsApp (Meta Cloud API) ---
+def whatsapp_configured() -> bool:
+    return bool(META_WHATSAPP_TOKEN and META_WHATSAPP_PHONE_NUMBER_ID and OWNER_WHATSAPP_NUMBER)
+
+async def send_whatsapp_text(body: str, to: str = None):
+    if not whatsapp_configured():
+        logger.info(f"[WhatsApp skipped - not configured] {body[:80]}")
+        return
+    target = to or OWNER_WHATSAPP_NUMBER
+    url = f"https://graph.facebook.com/{META_GRAPH_VERSION}/{META_WHATSAPP_PHONE_NUMBER_ID}/messages"
+    payload = {"messaging_product": "whatsapp", "recipient_type": "individual",
+               "to": target.replace("+", ""), "type": "text",
+               "text": {"preview_url": False, "body": body[:4096]}}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.post(url, headers={"Authorization": f"Bearer {META_WHATSAPP_TOKEN}"}, json=payload)
+            if r.status_code >= 400:
+                logger.error(f"WhatsApp send failed {r.status_code}: {r.text[:200]}")
+            else:
+                logger.info(f"WhatsApp sent to {target}")
+    except Exception as e:
+        logger.exception(f"WhatsApp error: {e}")
+
+# --- Cloudinary ---
+@api.get("/admin/cloudinary/signature")
+async def cloudinary_signature(user=Depends(get_current_admin)):
+    if not (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_SECRET):
+        raise HTTPException(400, "Cloudinary is not configured. Add CLOUDINARY_* env vars.")
+    timestamp = int(time.time())
+    folder = "rustic-bakes"
+    params = {"timestamp": timestamp, "folder": folder}
+    signature = cloudinary.utils.api_sign_request(params, CLOUDINARY_API_SECRET)
+    return {"signature": signature, "timestamp": timestamp, "cloud_name": CLOUDINARY_CLOUD_NAME,
+            "api_key": CLOUDINARY_API_KEY, "folder": folder}
+
+@api.get("/admin/cloudinary/status")
+async def cloudinary_status(user=Depends(get_current_admin)):
+    return {"configured": bool(CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET),
+            "cloud_name": CLOUDINARY_CLOUD_NAME}
+
 # --- Media / Images library ---
 @api.get("/admin/media")
 async def list_media(user=Depends(get_current_admin)):
@@ -475,13 +550,20 @@ async def add_media(data: dict, user=Depends(get_current_admin)):
     if not data.get("url"):
         raise HTTPException(400, "URL required")
     doc = {"id": str(uuid.uuid4()), "url": data["url"], "name": data.get("name", "Untitled"),
-           "tag": data.get("tag", ""), "created_at": now_iso()}
+           "tag": data.get("tag", ""), "public_id": data.get("public_id", ""),
+           "created_at": now_iso()}
     await db.media.insert_one(doc)
     doc.pop("_id", None)
     return doc
 
 @api.delete("/admin/media/{mid}")
 async def delete_media(mid: str, user=Depends(get_current_admin)):
+    m = await db.media.find_one({"id": mid}, {"_id": 0})
+    if m and m.get("public_id") and CLOUDINARY_CLOUD_NAME:
+        try:
+            await asyncio.to_thread(cloudinary.uploader.destroy, m["public_id"], invalidate=True)
+        except Exception as e:
+            logger.error(f"Cloudinary destroy failed: {e}")
     await db.media.delete_one({"id": mid})
     return {"success": True}
 
