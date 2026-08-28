@@ -42,6 +42,7 @@ META_WHATSAPP_TOKEN = os.environ.get("META_WHATSAPP_TOKEN", "")
 META_WHATSAPP_PHONE_NUMBER_ID = os.environ.get("META_WHATSAPP_PHONE_NUMBER_ID", "")
 META_GRAPH_VERSION = os.environ.get("META_GRAPH_VERSION", "v18.0")
 OWNER_WHATSAPP_NUMBER = os.environ.get("OWNER_WHATSAPP_NUMBER", "")
+CORS_ORIGINS = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", "*").split(",") if origin.strip()]
 
 resend.api_key = RESEND_API_KEY
 stripe.api_key = STRIPE_API_KEY
@@ -57,7 +58,7 @@ api = APIRouter(prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

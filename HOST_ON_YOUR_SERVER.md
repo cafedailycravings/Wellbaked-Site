@@ -36,10 +36,10 @@ dig cafedailycravings.in +short
 
 ## Step 2 — Prepare the server (one-time)
 
-SSH into your VPS and install Docker:
-```bash
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
+cp backend/.env.example backend/.env
+nano backend/.env
+
+The Docker Compose file builds the frontend with `REACT_APP_BACKEND_URL=https://cafedailycravings.in` by default. Change `REACT_APP_BACKEND_URL` in the compose environment if the API uses a separate public hostname.
 newgrp docker
 docker --version
 ```
@@ -73,15 +73,10 @@ sudo ufw enable
 ## Step 4 — Configure environment
 
 ```bash
-cp .env.example .env
-nano .env
-```
-Set `REACT_APP_BACKEND_URL=https://cafedailycravings.in`.
-
-Then edit backend secrets:
-```bash
+cp backend/.env.example backend/.env
 nano backend/.env
 ```
+The Compose build uses `REACT_APP_BACKEND_URL=https://cafedailycravings.in` by default. Change the `REACT_APP_BACKEND_URL` build argument if the API uses another public hostname.
 Fill in real values (leave any blank you don't have yet — the app skips them gracefully):
 
 ```env
@@ -116,19 +111,26 @@ OWNER_WHATSAPP_NUMBER=+918284990433
 
 Save and exit.
 
-## Step 5 — Launch 🚀
+## Step 5 — Launch on the same server
 
 ```bash
 docker compose --profile prod up -d --build
 ```
 
-That's it. Caddy will:
+All four services run on this one VPS: MongoDB is private, FastAPI is bound to localhost, React is served internally, and Caddy is the only public entry point. Caddy will:
 - Auto-request Let's Encrypt SSL for `cafedailycravings.in` (takes ~30 seconds)
 - Route `/api/*` → FastAPI backend
 - Route everything else → React frontend
 - MongoDB stays private on the internal Docker network
 
 Visit **https://cafedailycravings.in** — the site is live with HTTPS.
+
+Before launching, point GoDaddy DNS at this VPS and make sure ports 80 and 443 are open. Do not expose port 27017 or 8001 publicly. Check the deployment with:
+
+```bash
+docker compose --profile prod ps
+curl https://cafedailycravings.in/api/products
+```
 
 ## Step 6 — Verify
 
