@@ -4,7 +4,7 @@ import { Star, Quote } from "lucide-react";
 
 export function ReviewWall() {
   const [reviews, setReviews] = useState([]);
-  useEffect(() => { api.get("/reviews/featured").then(r => setReviews(r.data)); }, []);
+  useEffect(() => { api.get("/reviews/featured").then(r => setReviews(Array.isArray(r.data) ? r.data : [])).catch(() => setReviews([])); }, []);
   if (reviews.length === 0) return null;
   // duplicate list for infinite scroll effect
   const wall = [...reviews, ...reviews];

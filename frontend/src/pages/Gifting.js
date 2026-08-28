@@ -23,7 +23,7 @@ export default function Gifting() {
   const [occasion, setOccasion] = useState("birthday");
   const [sending, setSending] = useState(false);
 
-  useEffect(() => { api.get("/products?featured=true").then(r => setFeatured(r.data.slice(0, 6))); }, []);
+  useEffect(() => { api.get("/products?featured=true").then(r => setFeatured(Array.isArray(r.data) ? r.data.slice(0, 6) : [])).catch(() => setFeatured([])); }, []);
 
   const submit = async (e) => {
     e.preventDefault();

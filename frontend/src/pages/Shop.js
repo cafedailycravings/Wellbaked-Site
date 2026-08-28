@@ -14,8 +14,8 @@ export default function Shop() {
   const cat = params.get("cat") || "";
   useEffect(() => {
     const url = cat ? `/products?category=${cat}` : "/products";
-    api.get(url).then(r => setProducts(r.data));
-    api.get("/categories").then(r => setCats(r.data));
+    api.get(url).then(r => setProducts(Array.isArray(r.data) ? r.data : [])).catch(() => setProducts([]));
+    api.get("/categories").then(r => setCats(Array.isArray(r.data) ? r.data : [])).catch(() => setCats([]));
   }, [cat]);
 
   return (

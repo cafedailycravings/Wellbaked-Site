@@ -28,7 +28,7 @@ export default function Product() {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const loadReviews = () => api.get(`/products/${slug}/reviews`).then(r => setReviews(r.data));
+  const loadReviews = () => api.get(`/products/${slug}/reviews`).then(r => setReviews(Array.isArray(r.data) ? r.data : [])).catch(() => setReviews([]));
 
   useEffect(() => {
     api.get(`/products/${slug}`).then(r => setP(r.data)).catch(()=>setP(false));

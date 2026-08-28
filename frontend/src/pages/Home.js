@@ -16,11 +16,11 @@ export default function Home() {
   const [cats, setCats] = useState([]);
   const [instagram, setInstagram] = useState({ handle: "dailycravings", posts: [] });
   useEffect(() => {
-    api.get("/content/hero").then(r => setHero(r.data.value || {}));
-    api.get("/content/about").then(r => setAbout(r.data.value || {}));
-    api.get("/products?featured=true").then(r => setFeatured(r.data));
-    api.get("/categories").then(r => setCats(r.data));
-    api.get("/content/instagram").then(r => { if (r.data.value?.posts) setInstagram(r.data.value); });
+    api.get("/content/hero").then(r => setHero(r.data.value || {})).catch(() => {});
+    api.get("/content/about").then(r => setAbout(r.data.value || {})).catch(() => {});
+    api.get("/products?featured=true").then(r => setFeatured(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    api.get("/categories").then(r => setCats(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    api.get("/content/instagram").then(r => { if (r.data.value?.posts) setInstagram(r.data.value); }).catch(() => {});
     refreshWishlist();
   }, []);
 

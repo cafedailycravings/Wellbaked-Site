@@ -24,7 +24,7 @@ export default function About() {
   const [about, setAbout] = useState({});
   const [reels, setReels] = useState([]);
   useEffect(() => {
-    api.get("/content/about").then(r => setAbout(r.data.value || {}));
+    api.get("/content/about").then(r => setAbout(r.data.value || {})).catch(() => {});
     api.get("/content/reels").then(r => {
       if (r.data.value?.urls) setReels(r.data.value.urls.filter(Boolean).slice(0, 3));
     }).catch(()=>{});
