@@ -23,7 +23,7 @@ export default function Product() {
   const [p, setP] = useState(null);
   const [qty, setQty] = useState(1);
   const [reviews, setReviews] = useState([]);
-  const [user, setLocalUser] = useState(getUser());
+  const [user] = useState(getUser());
   const [form, setForm] = useState({ rating: 5, title: "", body: "", image_url: "" });
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);

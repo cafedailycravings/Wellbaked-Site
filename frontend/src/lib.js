@@ -1,5 +1,6 @@
 import axios from "axios";
-export const API = process.env.REACT_APP_BACKEND_URL + "/api";
+const backendUrl = process.env.REACT_APP_BACKEND_URL || (typeof window !== "undefined" ? window.location.origin : "");
+export const API = `${backendUrl.replace(/\/$/, "")}/api`;
 export const LOGO = "https://customer-assets-jai6qajn.emergentagent.net/wingman/70dcfcf6-1bde-41dd-b282-3d91c3c762ac/attachments/76ccfecc4afd4543b38c6d7279c66a8a_Logo.jpeg";
 export const CURRENCY = "₹";
 export const fmt = (n) => `${CURRENCY}${Number(n||0).toFixed(2)}`;
@@ -37,19 +38,32 @@ export const logout = () => { localStorage.removeItem("rb_token"); localStorage.
 
 // --- Cart utilities (localStorage) ---
 const CART_KEY = "rb_cart_v1";
-export const getCart = () => { try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; } };
+export const getCart = () => {
+  try {
+    const cart = JSON.parse(localStorage.getItem(CART_KEY));
+    return Array.isArray(cart) ? cart : [];
+  } catch { return []; }
+};
 export const saveCart = (c) => { localStorage.setItem(CART_KEY, JSON.stringify(c)); window.dispatchEvent(new Event("cart-updated")); };
 export const addToCart = (p, qty = 1) => {
+  const amount = Number(qty);
+  if (!p?.id || !Number.isFinite(amount) || amount <= 0) return;
   const cart = getCart();
   const i = cart.findIndex(x => x.product_id === p.id);
-  if (i >= 0) cart[i].quantity += qty;
-  else cart.push({ product_id: p.id, name: p.name, price: p.price, quantity: qty, image: p.image });
+  if (i >= 0) cart[i].quantity = Math.max(1, Number(cart[i].quantity) || 0) + amount;
+  else cart.push({ product_id: p.id, name: p.name, price: Number(p.price) || 0, quantity: amount, image: p.image });
   saveCart(cart);
 };
 export const removeFromCart = (pid) => saveCart(getCart().filter(x => x.product_id !== pid));
 export const updateQty = (pid, qty) => {
-  const c = getCart().map(x => x.product_id === pid ? { ...x, quantity: Math.max(1, qty) } : x);
+  const amount = Number(qty);
+  if (!Number.isFinite(amount)) return;
+  const c = getCart().map(x => x.product_id === pid ? { ...x, quantity: Math.max(1, amount) } : x);
   saveCart(c);
 };
 export const clearCart = () => saveCart([]);
-export const cartTotal = () => getCart().reduce((s, x) => s + x.price * x.quantity, 0);
+export const cartTotal = () => getCart().reduce((s, x) => {
+  const price = Number(x.price);
+  const quantity = Number(x.quantity);
+  return s + (Number.isFinite(price) && Number.isFinite(quantity) ? price * quantity : 0);
+}, 0);

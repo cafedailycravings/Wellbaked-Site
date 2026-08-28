@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { Toaster } from "sonner";
 import { Nav, Footer } from "./Layout";
 import Home from "./pages/Home";
@@ -22,6 +22,19 @@ function SiteShell({ children }) {
   return (<><Nav/>{children}<Footer/></>);
 }
 
+function NotFound() {
+  return (
+    <SiteShell>
+      <main className="max-w-4xl mx-auto px-6 py-28 text-center">
+        <p className="text-xs uppercase tracking-[0.25em] text-blush-dark">Page not found</p>
+        <h1 className="font-serif text-5xl text-brown mt-4">That bake has gone missing.</h1>
+        <p className="text-brown-light mt-5">The page you requested does not exist or has moved.</p>
+        <Link to="/shop" className="btn-primary inline-block mt-8">Browse all bakes</Link>
+      </main>
+    </SiteShell>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -42,6 +55,7 @@ export default function App() {
         <Route path="/account" element={<SiteShell><Account/></SiteShell>}/>
         <Route path="/admin/login" element={<SiteShell><AdminLogin/></SiteShell>}/>
         <Route path="/admin" element={<Admin/>}/>
+        <Route path="*" element={<NotFound/>}/>
       </Routes>
     </BrowserRouter>
   );

@@ -27,7 +27,7 @@ services:
         REACT_APP_BACKEND_URL: ${REACT_APP_BACKEND_URL:-https://cafedailycravings.in}
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "127.0.0.1:8080:80"
     depends_on: [backend]
 
   # Optional reverse proxy for HTTPS + backend routing on same domain

@@ -1,4 +1,3 @@
-import React from "react";
 import { Cake, Cookie, IceCream, Coffee, Briefcase, Cherry, Sparkles, Zap, PartyPopper, Flame, Heart } from "lucide-react";
 
 // map category slug → icon + tint (based on brand palette)

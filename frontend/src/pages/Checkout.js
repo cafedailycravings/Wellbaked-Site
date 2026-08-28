@@ -8,7 +8,7 @@ import { PincodeChecker } from "../PincodeChecker";
 export default function Checkout() {
   const nav = useNavigate();
   const [cart, setCart] = useState([]);
-  const [user, setLocalUser] = useState(getUser());
+  const [user] = useState(getUser());
   const [form, setForm] = useState({ customer_name: "", customer_email: "", customer_phone: "", delivery_address: "", notes: "" });
   const [loading, setLoading] = useState(false);
   const [delivery, setDelivery] = useState(null);

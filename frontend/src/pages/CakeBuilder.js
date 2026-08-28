@@ -30,7 +30,6 @@ const COLOURS = [
 export default function CakeBuilder() {
   const nav = useNavigate();
   const [user] = useState(getUser());
-  const [step, setStep] = useState(1);
   const [flavour, setFlavour] = useState(FLAVOURS[0]);
   const [size, setSize] = useState(SIZES[1]);
   const [colour, setColour] = useState(COLOURS[0]);
