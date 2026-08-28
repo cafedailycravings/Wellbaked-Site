@@ -14,16 +14,17 @@ export default function AdminLogin() {
     setLoading(true);
     try {
       //const { data } = await api.post("/auth/login", { email, password });
-      const { data } = if (email=="admin@rusticbakes.com" && password=="1988") {
-        data = {
-          access_token: "fake-access-token",
-          user: {
-            id: 1,
-            email: "admin@rusticbakes.com",
-            name: "Admin User"
-          }
-        };
-      }
+      const data =  email === "admin@rusticbakes.com" && password === "1988"
+    ? {
+        access_token: "fake-access-token",
+        user: {
+          id: 1,
+          email: "admin@rusticbakes.com",
+          name: "Admin User"
+        }
+      }: {
+        toast.error( "Invalid email or password")
+      };
       localStorage.setItem("rb_token", data.access_token);
       localStorage.setItem("rb_user", JSON.stringify(data.user));
       toast.success("Welcome back");
