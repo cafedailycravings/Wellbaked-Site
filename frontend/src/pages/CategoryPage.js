@@ -4,6 +4,7 @@ import { api, addToCart, fmt } from "../lib";
 import { toast } from "sonner";
 import { iconFor } from "../categoryIcons";
 import { SameDayBadge } from "../SameDayBadge";
+import { EgglessBadge } from "../EgglessBadge";
 import { ArrowLeft } from "lucide-react";
 
 export default function CategoryPage() {
@@ -49,7 +50,14 @@ export default function CategoryPage() {
           {products.map((p, i) => (
             <div key={p.id} className={"card relative " + (i === 0 ? "sm:col-span-2 lg:col-span-1 lg:row-span-2" : "")}
                  data-testid={`cat-product-${p.slug}`}>
-              {p.category === "instant-delivery" && (<div className="absolute top-4 left-4 z-10"><SameDayBadge/></div>)}
+              {p.category === "instant-delivery" ? (
+                <>
+                  <div className="absolute top-4 left-4 z-10"><SameDayBadge/></div>
+                  <div className="absolute top-14 left-4 z-10"><EgglessBadge/></div>
+                </>
+              ) : (
+                <div className="absolute top-4 left-4 z-10"><EgglessBadge/></div>
+              )}
               <Link to={`/product/${p.slug}`} className={"block overflow-hidden " + (i === 0 ? "h-96" : "h-56")}>
                 <img src={p.image} alt={p.name} className="w-full h-full object-cover"/>
               </Link>

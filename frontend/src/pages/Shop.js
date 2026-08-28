@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { iconFor } from "../categoryIcons";
 import { SameDayBadge } from "../SameDayBadge";
 import { WishlistHeart } from "../Wishlist";
+import { EgglessBadge } from "../EgglessBadge";
 
 export default function Shop() {
   const [params, setParams] = useSearchParams();
@@ -44,8 +45,13 @@ export default function Shop() {
       <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 stagger">
         {products.map(p => (
           <div key={p.id} className="card relative" data-testid={`shop-product-${p.slug}`}>
-            {p.category === "instant-delivery" && (
-              <div className="absolute top-4 left-4 z-10"><SameDayBadge/></div>
+            {p.category === "instant-delivery" ? (
+              <>
+                <div className="absolute top-4 left-4 z-10"><SameDayBadge/></div>
+                <div className="absolute top-14 left-4 z-10"><EgglessBadge/></div>
+              </>
+            ) : (
+              <div className="absolute top-4 left-4 z-10"><EgglessBadge/></div>
             )}
             <div className="absolute top-4 right-4 z-10"><WishlistHeart productId={p.id}/></div>
             <Link to={`/product/${p.slug}`} className="block h-64 overflow-hidden">

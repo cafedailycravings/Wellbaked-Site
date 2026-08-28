@@ -23,3 +23,9 @@ Thumbs.db
 # editor
 .vscode/
 .idea/
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials

@@ -4,6 +4,7 @@ import { api, addToCart, fmt, getUser } from "../lib";
 import { toast } from "sonner";
 import { ArrowLeft, Clock, Minus, Plus, Star, ImagePlus } from "lucide-react";
 import { WishlistHeart } from "../Wishlist";
+import { EgglessBadge } from "../EgglessBadge";
 
 function StarRow({ value = 5, size = 16, onSet }) {
   return (
@@ -76,6 +77,7 @@ export default function Product() {
       <div className="grid lg:grid-cols-2 gap-12 items-start">
         <div className="relative">
           <img src={p.image} alt={p.name} className="w-full h-[520px] object-cover rounded-3xl shadow-large" data-testid="product-image"/>
+          <div className="absolute top-4 left-4"><EgglessBadge/></div>
           <div className="absolute top-4 right-4"><WishlistHeart productId={p.id} size={22}/></div>
         </div>
         <div>

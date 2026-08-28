@@ -7,6 +7,7 @@ import { iconFor } from "../categoryIcons";
 import { SameDayBadge } from "../SameDayBadge";
 import { WishlistHeart, refreshWishlist } from "../Wishlist";
 import { ReviewWall } from "../ReviewWall";
+import { EgglessBadge } from "../EgglessBadge";
 
 export default function Home() {
   const [hero, setHero] = useState({});
@@ -111,8 +112,13 @@ export default function Home() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 stagger">
             {featured.map(p => (
               <div key={p.id} className="card group relative" data-testid={`featured-product-${p.slug}`}>
-                {p.category === "instant-delivery" && (
-                  <div className="absolute top-3 left-3 z-10"><SameDayBadge/></div>
+                {p.category === "instant-delivery" ? (
+                  <>
+                    <div className="absolute top-3 left-3 z-10"><SameDayBadge/></div>
+                    <div className="absolute top-12 left-3 z-10"><EgglessBadge small/></div>
+                  </>
+                ) : (
+                  <div className="absolute top-3 left-3 z-10"><EgglessBadge small/></div>
                 )}
                 <div className="absolute top-3 right-3 z-10"><WishlistHeart productId={p.id} size={18}/></div>
                 <Link to={`/product/${p.slug}`} className="block h-56 overflow-hidden">
