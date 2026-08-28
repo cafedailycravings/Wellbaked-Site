@@ -104,23 +104,25 @@ SSL will automatically be issued.
 
 ### Option A — Cloudflare Pages (recommended, free, fast CDN)
 
-1. In your repo, ensure `/app/frontend/.env.production` has:
+1. In your repo, set this environment variable in the Cloudflare Pages project:
    ```
    REACT_APP_BACKEND_URL=https://api.rusticbakes.com
    ```
 2. **Cloudflare → Pages → Create project → Connect to Git**.
 3. Settings:
    - **Framework**: Create React App
-   - **Build command**: `yarn install && yarn build`
+   - **Build command**: `npm ci && npm run build`
    - **Build output directory**: `build`
    - **Root directory**: `frontend`
 4. Add environment variable: `REACT_APP_BACKEND_URL=https://api.rusticbakes.com`
 5. Deploy.
-6. **Pages → Custom domains → Add** → `rusticbakes.com` and `www.rusticbakes.com`. Cloudflare handles DNS automatically.
+6. **Pages → Custom domains → Add** → `cafedailycravings.in` and `www.cafedailycravings.in`. Cloudflare handles DNS automatically.
+
+The repository includes `frontend/public/_redirects`, which CRA copies into `build/` and Cloudflare Pages uses to send every client-side route to React's `index.html`. Keep the API on a separate HTTPS backend origin such as `https://api.cafedailycravings.in`; set `REACT_APP_BACKEND_URL` before each Pages build. Do not commit `.env` files or API keys.
 
 ### Option B — GoDaddy shared hosting (cPanel)
 
-1. Locally: `cd frontend && REACT_APP_BACKEND_URL=https://api.rusticbakes.com yarn build`
+1. Locally: set `REACT_APP_BACKEND_URL=https://api.cafedailycravings.in`, then run `cd frontend && npm ci && npm run build`.
 2. Zip the `build/` folder contents (not the folder itself).
 3. **GoDaddy cPanel → File Manager → public_html** → upload the zip → extract.
 4. Add `.htaccess` in `public_html` for React Router (SPA rewrite):
