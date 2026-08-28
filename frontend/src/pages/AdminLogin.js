@@ -23,7 +23,7 @@ export default function AdminLogin() {
           name: "Admin User"
         }
       }: {
-        toast.error( "Invalid email or password")
+        err: "Login failed"
       };
       localStorage.setItem("rb_token", data.access_token);
       localStorage.setItem("rb_user", JSON.stringify(data.user));
