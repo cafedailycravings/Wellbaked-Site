@@ -9,30 +9,39 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const submit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      //const { data } = await api.post("/auth/login", { email, password });
-      const data =  email === "admin@rusticbakes.com" && password === "1988"
-    ? {
-        access_token: "fake-access-token",
-        user: {
-          id: 1,
-          email: "admin@rusticbakes.com",
-          name: "Admin User"
-        }
-      }: {
-        err: "Login failed"
-      };
-      localStorage.setItem("rb_token", data.access_token);
-      localStorage.setItem("rb_user", JSON.stringify(data.user));
-      toast.success("Welcome back");
-      nav("/admin");
-    } catch (err) {
-      toast.error(err.response?.data?.detail || "Login failed");
-    } finally { setLoading(false); }
+  const login = async (email, password) => {
+  if (email !== "admin@rusticbakes.com" || password !== "1988") {
+    throw new Error("Login failed");
+  }
+
+  return {
+    access_token: "fake-access-token",
+    user: {
+      id: 1,
+      email: "admin@rusticbakes.com",
+      name: "Admin User",
+    },
   };
+};
+
+const submit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+
+  try {
+    const data = await login(email, password);
+
+    localStorage.setItem("rb_token", data.access_token);
+    localStorage.setItem("rb_user", JSON.stringify(data.user));
+
+    toast.success("Welcome back");
+    nav("/admin");
+  } catch (err) {
+    toast.error(err.response?.data?.detail || err.message || "Login failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-6">
