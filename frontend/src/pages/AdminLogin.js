@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, LOGO } from "../lib";
+//import { api, LOGO } from "../lib";
+import { LOGO } from "../lib";
 import { toast } from "sonner";
 
 export default function AdminLogin() {
